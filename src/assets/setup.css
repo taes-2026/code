@@ -1,0 +1,31 @@
+.setup fieldset {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.setup legend {
+  padding: 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.setup .check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.setup .check + .check {
+  margin-top: 0.25rem;
+}
+
+.setup .check input {
+  width: 1rem;
+  height: 1rem;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--color-primary);
+}
