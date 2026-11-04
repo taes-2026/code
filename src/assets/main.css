@@ -24,16 +24,22 @@ body {
 }
 
 input,
+select,
 button {
   font: inherit;
   width: 100%;
   min-height: 44px;
-  padding: 0.6rem 0.75rem;
+  padding: 0.625rem 0.75rem;
   border-radius: 8px;
 }
 
-input {
+input,
+select {
   border: 1px solid var(--color-border);
+}
+
+select {
+  background: var(--color-bg);
 }
 
 button {
@@ -82,18 +88,18 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .auth .error {
   color: var(--color-error);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .auth .switch {
   margin-top: 1.5rem;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 @media (min-width: 768px) {
