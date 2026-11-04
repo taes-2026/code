@@ -1,15 +1,44 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { signOut } from 'firebase/auth'
-import { auth } from '@/firebase'
+import { collection, getDocs, type Timestamp } from 'firebase/firestore'
+import { auth, db } from '@/firebase'
+
+interface Item {
+  id: string
+  name: string
+  category: string
+  quantity: number
+  unit: string
+  expirationDate: Timestamp
+}
 
 const router = useRouter()
 const user = auth.currentUser
+const items = ref<Item[]>([])
+const loading = ref(true)
+const error = ref('')
+
+// Os items de cada utilizador ficam em users/{uid}/items
+async function loadItems() {
+  if (!user) return
+  try {
+    const data = await getDocs(collection(db, 'users', user.uid, 'items'))
+    items.value = data.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Item)
+  } catch {
+    error.value = 'Não foi possível carregar o inventário.'
+  } finally {
+    loading.value = false
+  }
+}
 
 async function logout() {
   await signOut(auth)
   router.push({ name: 'login' })
 }
+
+onMounted(loadItems)
 </script>
 
 <template>
@@ -21,6 +50,29 @@ async function logout() {
 
     <main>
       <p>Bem-vindo, {{ user?.email }}</p>
+
+      <h2>Inventário</h2>
+      <p v-if="loading">A carregar...</p>
+      <p v-else-if="error" class="error">{{ error }}</p>
+      <p v-else-if="items.length === 0">Sem comida no seu inventário</p>
+      <table v-else>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Categoria</th>
+            <th>Quantidade</th>
+            <th>Validade</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in items" :key="item.id">
+            <td>{{ item.name }}</td>
+            <td>{{ item.category }}</td>
+            <td>{{ item.quantity }} {{ item.unit }}</td>
+            <td>{{ item.expirationDate.toDate().toLocaleDateString('pt-PT') }}</td>
+          </tr>
+        </tbody>
+      </table>
     </main>
   </div>
 </template>
@@ -38,8 +90,29 @@ h1 {
   font-size: 1.25rem;
 }
 
+h2 {
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+}
+
 main {
   padding: 1rem;
+}
+
+.error {
+  color: var(--color-error);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
 }
 
 @media (min-width: 768px) {
