@@ -3,7 +3,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { FirebaseError } from 'firebase/app'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '@/firebase'
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { auth, db } from '@/firebase'
 
 const router = useRouter()
 const email = ref('')
@@ -27,7 +28,12 @@ async function register() {
 
   loading.value = true
   try {
-    await createUserWithEmailAndPassword(auth, email.value, password.value)
+    const { user } = await createUserWithEmailAndPassword(auth, email.value, password.value)
+    // Cria o documento users/{uid}, onde fica a subcoleção items
+    await setDoc(doc(db, 'users', user.uid), {
+      email: user.email,
+      createdAt: serverTimestamp(),
+    })
     router.push({ name: 'dashboard' })
   } catch (e) {
     const code = e instanceof FirebaseError ? e.code : ''
