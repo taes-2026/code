@@ -12,20 +12,66 @@ export interface ExpiringOptions {
   includeExpired?: boolean
 }
 
+export const EXPIRATION_RANGE_YEARS = 10
+
+export function toDateOnly(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0')
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+export function parseDateOnly(value: string): Date | null {
+  const match = DATE_ONLY.exec(value)
+
+  if (!match) return null
+
+  const [year, month, day] = match.slice(1).map(Number) as [number, number, number]
+  const date = new Date(year, month - 1, day)
+
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null
+  }
+
+  return date
+}
+
+const TYPED_ISO = /^(\d{4})[-/.]?(\d{2})[-/.]?(\d{2})$/
+const TYPED_LOCAL = /^(\d{2})[-/.]?(\d{2})[-/.]?(\d{4})$/
+
+/**
+ * Converte uma data escrita à mão em `YYYY-MM-DD`. Aceita `2026-11-19`,
+ * `19-11-2026`, `19/11/2026`, `19112026` e `20261119`. Devolve `null` se a
+ * data não existir.
+ */
+export function parseTypedDate(text: string): string | null {
+  const local = TYPED_LOCAL.exec(text)
+  const iso = TYPED_ISO.exec(text)
+  const candidates = [
+    local && `${local[3]}-${local[2]}-${local[1]}`,
+    iso && `${iso[1]}-${iso[2]}-${iso[3]}`,
+  ]
+
+  return candidates.find((date): date is string => !!date && parseDateOnly(date) !== null) ?? null
+}
+
+export function getExpirationDateRange(today: Date): { min: string; max: string } {
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const day = today.getDate()
+
+  return {
+    min: toDateOnly(new Date(year - EXPIRATION_RANGE_YEARS, month, day)),
+    max: toDateOnly(new Date(year + EXPIRATION_RANGE_YEARS, month, day)),
+  }
+}
+
 export function getExpirationTime(expirationDate: string): Date | null {
   if (!expirationDate) return null
 
-  const match = DATE_ONLY.exec(expirationDate)
+  if (DATE_ONLY.test(expirationDate)) {
+    const date = parseDateOnly(expirationDate)
 
-  if (match) {
-    const [year, month, day] = match.slice(1).map(Number) as [number, number, number]
-    const date = new Date(year, month - 1, day)
-
-    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-      return null
-    }
-
-    return new Date(year, month - 1, day + 1)
+    return date && new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
   }
 
   const date = new Date(expirationDate)
