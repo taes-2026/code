@@ -2,8 +2,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { CATEGORIES, UNITS, type ItemCategory, type ItemUnit } from '@/domain/items'
-import { auth } from '@/firebase'
-import { createItem } from '@/services/items'
+import { create } from '@/services/items'
 
 interface ItemEntryForm {
   name: string
@@ -27,14 +26,6 @@ const loading = ref(false)
 async function save() {
   error.value = ''
 
-  const user = auth.currentUser
-
-  if (!user) {
-    await router.replace({ name: 'login' })
-
-    return
-  }
-
   if (!form.name.trim()) {
     error.value = 'Indica o nome do produto.'
 
@@ -47,9 +38,7 @@ async function save() {
     return
   }
 
-  const expirationDate = new Date(`${form.expirationDate}T00:00:00`)
-
-  if (!form.expirationDate || Number.isNaN(expirationDate.getTime())) {
+  if (!form.expirationDate) {
     error.value = 'Indica uma data de validade válida.'
 
     return
@@ -58,12 +47,12 @@ async function save() {
   loading.value = true
 
   try {
-    await createItem(user.uid, {
+    create({
       name: form.name.trim(),
       category: form.category,
       quantity: form.quantity,
       unit: form.unit,
-      expirationDate,
+      expirationDate: form.expirationDate,
     })
     await router.push({ name: 'dashboard' })
   } catch {

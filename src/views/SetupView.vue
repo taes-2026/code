@@ -4,27 +4,36 @@ import '@/assets/setup.css'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ALLERGIES, DIETS, RESTRICTIONS } from '@/domain/diet'
-import { auth } from '@/firebase'
-import { createProfile } from '@/services/profiles'
+import { find, save } from '@/services/profiles'
 import type { ProfileForm } from '@/types/profile'
 
 const router = useRouter()
-const form = reactive<ProfileForm>({
-  name: '',
-  diet: 'omnivore',
-  allergies: [],
-  restrictions: [],
-})
+const existing = find()
+const isEditing = existing !== null
+
+const form = reactive<ProfileForm>(
+  existing
+    ? {
+        name: existing.name,
+        diet: existing.diet,
+        allergies: [...existing.allergies],
+        restrictions: [...existing.restrictions],
+      }
+    : {
+        name: '',
+        diet: 'omnivore',
+        allergies: [],
+        restrictions: [],
+      },
+)
 const error = ref('')
 const loading = ref(false)
 
-async function save() {
+async function submit() {
   error.value = ''
 
-  const user = auth.currentUser
-
-  if (!user) {
-    await router.replace({ name: 'login' })
+  if (!form.name.trim()) {
+    error.value = 'Indica o nome do perfil.'
 
     return
   }
@@ -32,10 +41,10 @@ async function save() {
   loading.value = true
 
   try {
-    await createProfile(user.uid, { ...form })
+    save({ ...form, name: form.name.trim() })
     await router.push({ name: 'dashboard' })
   } catch {
-    error.value = 'ERRO: Erro ao salvar o perfil'
+    error.value = 'Não foi possível guardar o perfil.'
   } finally {
     loading.value = false
   }
@@ -44,9 +53,9 @@ async function save() {
 
 <template>
   <main class="auth setup">
-    <h1>Configurar perfil</h1>
+    <h1>{{ isEditing ? 'Editar perfil' : 'Configurar perfil' }}</h1>
 
-    <form @submit.prevent="save">
+    <form @submit.prevent="submit">
       <label>
         Nome do perfil
         <input v-model.trim="form.name" type="text" autocomplete="name" maxlength="80" required />
@@ -80,7 +89,7 @@ async function save() {
       <p v-if="error" class="error">{{ error }}</p>
 
       <button type="submit" :disabled="loading">
-        {{ loading ? '...' : 'Começar' }}
+        {{ loading ? '...' : isEditing ? 'Guardar alterações' : 'Começar' }}
       </button>
     </form>
   </main>
