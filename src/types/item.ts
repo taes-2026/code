@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase/firestore'
 import type { ItemCategory, ItemUnit } from '@/domain/items'
 
 export interface InventoryItem {
@@ -7,9 +6,9 @@ export interface InventoryItem {
   category: ItemCategory
   quantity: number
   unit: ItemUnit
-  expirationDate: Timestamp
-  createdAt: Timestamp | null
-  updatedAt: Timestamp | null
+  expirationDate: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface ItemForm {
@@ -17,5 +16,5 @@ export interface ItemForm {
   category: ItemCategory
   quantity: number
   unit: ItemUnit
-  expirationDate: Date
+  expirationDate: string
 }

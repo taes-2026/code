@@ -1,19 +1,25 @@
-import { addDoc, collection, getDocs, limit, query, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/firebase'
-import type { ProfileForm } from '@/types/profile'
+import { find as findStored, save as saveStored } from '@/lib/storage'
+import type { Profile, ProfileForm } from '@/types/profile'
 
-const profilesReference = (uid: string) => collection(db, 'users', uid, 'profiles')
-
-export async function hasProfile(uid: string): Promise<boolean> {
-  const snapshot = await getDocs(query(profilesReference(uid), limit(1)))
-
-  return !snapshot.empty
+export function find(): Profile | null {
+  return findStored('profile')
 }
 
-export async function createProfile(uid: string, form: ProfileForm): Promise<void> {
-  await addDoc(profilesReference(uid), {
+export function hasProfile(): boolean {
+  return find() !== null
+}
+
+export function save(form: ProfileForm): Profile {
+  const existing = find()
+  const now = new Date().toISOString()
+
+  const profile: Profile = {
     ...form,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  }
+
+  saveStored('profile', profile)
+
+  return profile
 }
