@@ -2,21 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { signOut } from 'firebase/auth'
-import { collection, getDocs, type Timestamp } from 'firebase/firestore'
+import { collection, getDocs } from 'firebase/firestore'
 import { auth, db } from '@/firebase'
-
-interface Item {
-  id: string
-  name: string
-  category: string
-  quantity: number
-  unit: string
-  expirationDate: Timestamp
-}
+import { CATEGORIES, UNITS } from '@/domain/items'
+import type { InventoryItem } from '@/types/item'
 
 const router = useRouter()
 const user = auth.currentUser
-const items = ref<Item[]>([])
+const items = ref<InventoryItem[]>([])
 const loading = ref(true)
 const error = ref('')
 
@@ -25,12 +18,16 @@ async function loadItems() {
   if (!user) return
   try {
     const data = await getDocs(collection(db, 'users', user.uid, 'items'))
-    items.value = data.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Item)
+    items.value = data.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as InventoryItem)
   } catch {
     error.value = 'Não foi possível carregar o inventário.'
   } finally {
     loading.value = false
   }
+}
+
+function addProduct() {
+  router.push({ name: 'product-entry' })
 }
 
 async function logout() {
@@ -51,6 +48,8 @@ onMounted(loadItems)
     <main>
       <p>Bem-vindo, {{ user?.email }}</p>
 
+      <button class="add" @click="addProduct">Adicionar produto</button>
+
       <h2>Inventário</h2>
       <p v-if="loading">A carregar...</p>
       <p v-else-if="error" class="error">{{ error }}</p>
@@ -67,8 +66,8 @@ onMounted(loadItems)
         <tbody>
           <tr v-for="item in items" :key="item.id">
             <td>{{ item.name }}</td>
-            <td>{{ item.category }}</td>
-            <td>{{ item.quantity }} {{ item.unit }}</td>
+            <td>{{ CATEGORIES[item.category] ?? item.category }}</td>
+            <td>{{ item.quantity }} {{ UNITS[item.unit] ?? item.unit }}</td>
             <td>{{ item.expirationDate.toDate().toLocaleDateString('pt-PT') }}</td>
           </tr>
         </tbody>
@@ -97,6 +96,12 @@ h2 {
 
 main {
   padding: 1rem;
+}
+
+.add {
+  width: auto;
+  margin-top: 1rem;
+  padding-inline: 1.25rem;
 }
 
 .error {
