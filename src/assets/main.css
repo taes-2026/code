@@ -5,6 +5,9 @@
   --color-border: #e5e7eb;
   --color-primary: #16a34a;
   --color-error: #dc2626;
+  --color-warning: #f59e0b;
+  --color-warning-bg: #fffbeb;
+  --color-warning-text: #92400e;
 }
 
 *,

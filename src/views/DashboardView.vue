@@ -1,14 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import ExpirationAlert from '@/components/ExpirationAlert.vue'
 import { CATEGORIES, UNITS } from '@/domain/items'
 import { find } from '@/services/profiles'
-import { findAll } from '@/services/items'
+import { findAll, subscribe } from '@/services/items'
 import type { InventoryItem } from '@/types/item'
 
 const router = useRouter()
 const profile = find()
 const items = ref<InventoryItem[]>(findAll())
+const now = ref(new Date())
+
+let unsubscribe: (() => void) | undefined
+let clock: ReturnType<typeof setInterval> | undefined
+
+onMounted(() => {
+  unsubscribe = subscribe((value) => {
+    items.value = value
+  })
+  // Atualiza o "agora" para os alertas mudarem com o passar do tempo.
+  clock = setInterval(() => {
+    now.value = new Date()
+  }, 60_000)
+})
+
+onUnmounted(() => {
+  unsubscribe?.()
+  clearInterval(clock)
+})
 
 function formatDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString('pt-PT')
@@ -31,12 +51,14 @@ function editProfile() {
     </header>
 
     <main>
+      <ExpirationAlert :items="items" :now="now" />
+
       <p>Bem-vindo, {{ profile?.name }}</p>
 
       <button class="add" @click="addProduct">Adicionar produto</button>
 
-      <h2>Inventário</h2>
-      <p v-if="items.length === 0">Sem comida no seu inventário</p>
+      <h2>Dispensa</h2>
+      <p v-if="items.length === 0">Sem comida na sua dispensa</p>
       <table v-else>
         <thead>
           <tr>
