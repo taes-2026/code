@@ -1,4 +1,4 @@
-import { find, save } from '@/lib/storage'
+import { find, save, subscribe as subscribeStored } from '@/lib/storage'
 import type { InventoryItem, ItemForm } from '@/types/item'
 
 function buildItem(form: ItemForm): InventoryItem {
@@ -26,4 +26,9 @@ export function create(form: ItemForm): InventoryItem {
   save('items', [...findAll(), item])
 
   return item
+}
+
+/** Notifica quando a despensa é alterada noutro separador/janela. */
+export function subscribe(listener: (items: InventoryItem[]) => void): () => void {
+  return subscribeStored('items', listener)
 }
