@@ -5,6 +5,8 @@ import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import SetupView from '@/views/SetupView.vue'
 import DashboardView from '@/views/DashboardView.vue'
+import ProductEntryView from '@/views/ProductEntryView.vue'
+import ManualEntryView from '@/views/ManualEntryView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -17,6 +19,18 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: DashboardView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/items/new',
+      name: 'product-entry',
+      component: ProductEntryView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/items/new/manual',
+      name: 'manual-entry',
+      component: ManualEntryView,
       meta: { requiresAuth: true },
     },
   ],
