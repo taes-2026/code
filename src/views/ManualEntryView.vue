@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import DateInput from '@/components/DateInput.vue'
+import { getExpirationDateRange, parseDateOnly } from '@/domain/expiration'
 import { CATEGORIES, UNITS, type ItemCategory, type ItemUnit } from '@/domain/items'
 import { create } from '@/services/items'
 
@@ -20,8 +22,13 @@ const form = reactive<ItemEntryForm>({
   unit: 'unit',
   expirationDate: '',
 })
+const dateRange = getExpirationDateRange(new Date())
 const error = ref('')
 const loading = ref(false)
+
+function formatDate(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString('pt-PT')
+}
 
 async function save() {
   error.value = ''
@@ -38,8 +45,14 @@ async function save() {
     return
   }
 
-  if (!form.expirationDate) {
+  if (!parseDateOnly(form.expirationDate)) {
     error.value = 'Indica uma data de validade válida.'
+
+    return
+  }
+
+  if (form.expirationDate < dateRange.min || form.expirationDate > dateRange.max) {
+    error.value = `A data de validade tem de estar entre ${formatDate(dateRange.min)} e ${formatDate(dateRange.max)}.`
 
     return
   }
@@ -97,7 +110,12 @@ async function save() {
 
       <label>
         Data de validade
-        <input v-model="form.expirationDate" type="date" required />
+        <DateInput
+          v-model="form.expirationDate"
+          :min="dateRange.min"
+          :max="dateRange.max"
+          required
+        />
       </label>
 
       <p v-if="error" class="error" role="alert">{{ error }}</p>
