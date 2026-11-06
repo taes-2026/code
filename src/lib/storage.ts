@@ -6,6 +6,7 @@ const PREFIX = 'smartpantry'
 type StorageData = {
   profile: Profile | null
   items: InventoryItem[]
+  categories: Record<string, string>
 }
 
 export type StorageKey = keyof StorageData
@@ -42,6 +43,11 @@ const entries: { [K in StorageKey]: Entry<StorageData[K]> } = {
     default: () => [],
     check: (value): value is InventoryItem[] =>
       Array.isArray(value) && value.every(isInventoryItem),
+  },
+  categories: {
+    default: () => ({}),
+    check: (value): value is Record<string, string> =>
+      typeof value === 'object' && value !== null && !Array.isArray(value),
   },
 }
 
