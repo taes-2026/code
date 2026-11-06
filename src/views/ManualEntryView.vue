@@ -26,7 +26,7 @@ const form = reactive<ItemEntryForm>({
 const dateRange = getExpirationDateRange(new Date())
 const error = ref('')
 const loading = ref(false)
-const categoriesList = getCategories() // ADD THIS
+const categoriesList = getCategories()
 
 function formatDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString('pt-PT')
