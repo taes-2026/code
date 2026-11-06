@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { createCategory } from '@/services/categories'
-
+import { createCategory, getCategories } from '@/services/categories'
 const router = useRouter()
 const categoryName = ref('')
+const categoriesList = ref(getCategories())
 
 const handleSave = () => {
   if (categoryName.value.trim()) {
     createCategory(categoryName.value.trim())
-    router.push('/') 
+    
+    categoriesList.value = getCategories()
+    
+    categoryName.value = '' 
   }
 }
 </script>
@@ -36,6 +39,23 @@ const handleSave = () => {
         Guardar categoria
       </button>
     </form>
+
+    <div class="categories-list">
+      <h2>Categorias Existentes</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(label, key) in categoriesList" :key="key">
+            <td>{{ label }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
   </main>
 </template>
 
@@ -54,4 +74,16 @@ const handleSave = () => {
     border-radius: 6px; 
     cursor: pointer; 
     }
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
 </style>
