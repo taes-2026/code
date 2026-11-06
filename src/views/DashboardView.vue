@@ -6,11 +6,13 @@ import { CATEGORIES, UNITS } from '@/domain/items'
 import { find } from '@/services/profiles'
 import { findAll, subscribe } from '@/services/items'
 import type { InventoryItem } from '@/types/item'
+import { getCategories } from '@/services/categories'
 
 const router = useRouter()
 const profile = find()
 const items = ref<InventoryItem[]>(findAll())
 const now = ref(new Date())
+const categoriesList = getCategories()
 
 let unsubscribe: (() => void) | undefined
 let clock: ReturnType<typeof setInterval> | undefined
@@ -41,6 +43,11 @@ function addProduct() {
 function editProfile() {
   router.push({ name: 'setup' })
 }
+
+function addCategory(){
+  router.push({name: 'category-entry'})
+}
+
 </script>
 
 <template>
@@ -55,7 +62,10 @@ function editProfile() {
 
       <p>Bem-vindo, {{ profile?.name }}</p>
 
-      <button class="add" @click="addProduct">Adicionar produto</button>
+      <div class="action-buttons" style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button class="add" @click="addProduct">Adicionar produto</button>
+        <button class="add" @click="addCategory">Adicionar categoria</button>
+      </div>
 
       <h2>Dispensa</h2>
       <p v-if="items.length === 0">Sem comida na sua dispensa</p>

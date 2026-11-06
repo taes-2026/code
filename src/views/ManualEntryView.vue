@@ -3,7 +3,8 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import DateInput from '@/components/DateInput.vue'
 import { getExpirationDateRange, parseDateOnly } from '@/domain/expiration'
-import { CATEGORIES, UNITS, type ItemCategory, type ItemUnit } from '@/domain/items'
+import { UNITS, type ItemCategory, type ItemUnit } from '@/domain/items' // Removed CATEGORIES
+import { getCategories } from '@/services/categories' // ADD THIS
 import { create } from '@/services/items'
 
 interface ItemEntryForm {
@@ -25,6 +26,7 @@ const form = reactive<ItemEntryForm>({
 const dateRange = getExpirationDateRange(new Date())
 const error = ref('')
 const loading = ref(false)
+const categoriesList = getCategories() // ADD THIS
 
 function formatDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString('pt-PT')
@@ -92,7 +94,7 @@ async function save() {
       <label>
         Categoria
         <select v-model="form.category" required>
-          <option v-for="(label, id) in CATEGORIES" :key="id" :value="id">{{ label }}</option>
+          <option v-for="(label, id) in categoriesList" :key="id" :value="id">{{ label }}</option>
         </select>
       </label>
 
