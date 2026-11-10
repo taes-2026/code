@@ -44,8 +44,12 @@ function editProfile() {
   router.push({ name: 'setup' })
 }
 
-function addCategory(){
-  router.push({name: 'category-entry'})
+function addCategory() {
+  router.push({ name: 'category-entry' })
+}
+
+function recipies() {
+  router.push({ name: 'recipes' })
 }
 
 </script>
@@ -65,6 +69,7 @@ function addCategory(){
       <div class="action-buttons" style="display: flex; gap: 10px; margin-bottom: 20px;">
         <button class="add" @click="addProduct">Adicionar produto</button>
         <button class="add" @click="addCategory">Adicionar categoria</button>
+        <button class="recipe" @click="recipies">Procurar receitas</button>
       </div>
 
       <h2>Dispensa</h2>
@@ -114,6 +119,13 @@ main {
 }
 
 .add {
+  width: auto;
+  margin-top: 1rem;
+  padding-inline: 1.25rem;
+}
+
+
+.recipe {
   width: auto;
   margin-top: 1rem;
   padding-inline: 1.25rem;
