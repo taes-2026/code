@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getRecipeInformation, type RecipeDetails } from '@/services/recipes'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import CollectionsModal from '@/components/CollectionsModal.vue'
+import CookModeModal from '@/components/CookModeModal.vue'
 import { useBookmarks } from '@/stores/bookmarks'
 import type { RecipeReference } from '@/types/bookmark'
 
@@ -13,6 +14,7 @@ const recipe = ref<RecipeDetails | null>(null)
 const loading = ref(false)
 const error = ref('')
 const showCollections = ref(false)
+const showCookMode = ref(false)
 
 const { isBookmarked } = useBookmarks()
 
@@ -77,7 +79,7 @@ const pricePerServing = computed(() =>
 )
 
 function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && !showCollections.value) emit('close')
+    if (e.key === 'Escape' && !showCollections.value && !showCookMode.value) emit('close')
 }
 
 onMounted(() => {
@@ -113,6 +115,11 @@ onBeforeUnmount(() => {
                                 @longpress="showCollections = true" />
                         </div>
                     </div>
+
+                    <button v-if="steps.length || plainInstructions" type="button" class="cook-mode-btn"
+                        @click="showCookMode = true">
+                        Começar a cozinhar
+                    </button>
 
                     <ul class="facts">
                         <li><strong>{{ recipe.readyInMinutes }} min</strong><span>Total time</span></li>
@@ -170,6 +177,8 @@ onBeforeUnmount(() => {
 
     <CollectionsModal v-if="showCollections && reference" :recipe="reference"
         @close="showCollections = false" />
+
+    <CookModeModal v-if="showCookMode && recipe" :recipe="recipe" @close="showCookMode = false" />
 </template>
 
 <style scoped>
@@ -250,14 +259,30 @@ onBeforeUnmount(() => {
 
 .collections-btn {
     width: auto;
-    min-height: 0;
-    padding: 6px 12px;
+    min-height: 40px;
+    padding: 0 14px;
     border: 1px solid #198754;
     border-radius: 999px;
     background: transparent;
     color: #198754;
     font-size: 0.85rem;
     cursor: pointer;
+}
+
+.cook-mode-btn {
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: #198754;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cook-mode-btn:hover {
+    background: #157347;
 }
 
 .content h3 {

@@ -116,6 +116,14 @@ onBeforeUnmount(cancelPress)
   transform: scale(1.08);
 }
 
+/* Keeps the visual circle small while giving it a 44px touch target. */
+.bookmark-button::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+}
+
 .bookmark-button.saved {
   background: #198754;
   border-color: #198754;

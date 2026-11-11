@@ -170,6 +170,7 @@ function removeCollection(id: string, name: string) {
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -206,8 +207,10 @@ function removeCollection(id: string, name: string) {
 
 .chip {
   width: auto;
-  min-height: 0;
+  min-height: 36px;
   padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
   border: 1px solid var(--color-border, #ddd);
   border-radius: 999px;
   background: transparent;
@@ -237,13 +240,19 @@ function removeCollection(id: string, name: string) {
   font-size: 0.85rem;
   line-height: 1;
   cursor: pointer;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.15s;
 }
 
-.chip-group:hover .chip-delete,
-.chip-delete:focus-visible {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .chip-delete {
+    opacity: 0;
+  }
+
+  .chip-group:hover .chip-delete,
+  .chip-delete:focus-visible {
+    opacity: 1;
+  }
 }
 
 .status {
@@ -318,8 +327,10 @@ function removeCollection(id: string, name: string) {
 
 .collections-btn {
   width: auto;
-  min-height: 0;
-  padding: 4px 0;
+  min-height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
   background: transparent;
   color: #198754;
   font-size: 0.85rem;
