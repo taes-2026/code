@@ -3,14 +3,22 @@ import { onMounted, ref } from 'vue'
 import { searchRecipes, type RecipeSummary, searchRecipesByIngredients } from '@/services/recipes'
 import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
 import ChoosePantrysForSearchModal from '@/components/ChoosePantrysForSearchModal.vue'
+import BookmarkButton from '@/components/BookmarkButton.vue'
+import CollectionsModal from '@/components/CollectionsModal.vue'
+import type { RecipeReference } from '@/types/bookmark'
 
 const recipes = ref<RecipeSummary[]>([])
 const query = ref('')
 const loading = ref(false)
 const error = ref('')
 const selectedRecipeId = ref<number | null>(null)
+const pickerRecipe = ref<RecipeReference | null>(null)
 const showIngredientsModal = ref(false)
 const ingredients = ref<string[]>([])
+
+function openCollections(recipe: RecipeSummary) {
+    pickerRecipe.value = { id: recipe.id, title: recipe.title, image: recipe.image }
+}
 
 async function onIngredientsConfirm(selected: string[]) {
     ingredients.value = selected
@@ -47,7 +55,10 @@ onMounted(loadRecipes)
     <main class="page-container">
         <header class="page-header">
             <h2>Receitas</h2>
-            <router-link to="/" class="back-link">Voltar</router-link>
+            <div class="header-links">
+                <router-link to="/bookmarks" class="back-link">Guardadas</router-link>
+                <router-link to="/" class="back-link">Voltar</router-link>
+            </div>
         </header>
 
         <form class="search-form" @submit.prevent="loadRecipes">
@@ -65,13 +76,19 @@ onMounted(loadRecipes)
         <div v-else class="recipe-grid">
             <article v-for="recipe in recipes" :key="recipe.id" class="recipe-card" role="button" tabindex="0"
                 @click="selectedRecipeId = recipe.id" @keydown.enter="selectedRecipeId = recipe.id">
-                <img :src="recipe.image" :alt="recipe.title" loading="lazy" />
+                <div class="card-media">
+                    <img :src="recipe.image" :alt="recipe.title" loading="lazy" />
+                    <BookmarkButton class="card-bookmark" :recipe="recipe"
+                        @longpress="openCollections(recipe)" />
+                </div>
                 <h3>{{ recipe.title }}</h3>
             </article>
         </div>
 
         <ChoosePantrysForSearchModal v-if="showIngredientsModal" :initial-selected="ingredients"
             @close="showIngredientsModal = false" @confirm="onIngredientsConfirm" />
+
+        <CollectionsModal v-if="pickerRecipe" :recipe="pickerRecipe" @close="pickerRecipe = null" />
 
         <RecipeDetailModal v-if="selectedRecipeId !== null" :recipe-id="selectedRecipeId"
             @close="selectedRecipeId = null" />
@@ -95,6 +112,11 @@ onMounted(loadRecipes)
 .back-link {
     color: #198754;
     text-decoration: underline;
+}
+
+.header-links {
+    display: flex;
+    gap: 16px;
 }
 
 .search-form {
@@ -160,6 +182,16 @@ onMounted(loadRecipes)
     aspect-ratio: 312 / 231;
     object-fit: cover;
     display: block;
+}
+
+.card-media {
+    position: relative;
+}
+
+.card-bookmark {
+    position: absolute;
+    top: 8px;
+    right: 8px;
 }
 
 .recipe-card h3 {

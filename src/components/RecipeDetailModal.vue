@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getRecipeInformation, type RecipeDetails } from '@/services/recipes'
+import BookmarkButton from '@/components/BookmarkButton.vue'
+import CollectionsModal from '@/components/CollectionsModal.vue'
+import { useBookmarks } from '@/stores/bookmarks'
+import type { RecipeReference } from '@/types/bookmark'
 
 const props = defineProps<{ recipeId: number }>()
 const emit = defineEmits<{ close: [] }>()
@@ -8,6 +12,16 @@ const emit = defineEmits<{ close: [] }>()
 const recipe = ref<RecipeDetails | null>(null)
 const loading = ref(false)
 const error = ref('')
+const showCollections = ref(false)
+
+const { isBookmarked } = useBookmarks()
+
+const reference = computed<RecipeReference | null>(() =>
+    recipe.value
+        ? { id: recipe.value.id, title: recipe.value.title, image: recipe.value.image }
+        : null,
+)
+const saved = computed(() => (recipe.value ? isBookmarked(recipe.value.id) : false))
 
 async function load(id: number) {
     loading.value = true
@@ -63,7 +77,7 @@ const pricePerServing = computed(() =>
 )
 
 function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') emit('close')
+    if (e.key === 'Escape' && !showCollections.value) emit('close')
 }
 
 onMounted(() => {
@@ -88,7 +102,17 @@ onBeforeUnmount(() => {
                 <img v-if="recipe.image" :src="recipe.image" :alt="recipe.title" class="hero" />
 
                 <div class="content">
-                    <h2>{{ recipe.title }}</h2>
+                    <div class="title-row">
+                        <h2>{{ recipe.title }}</h2>
+                        <div class="title-actions">
+                            <button v-if="saved" type="button" class="collections-btn"
+                                @click="showCollections = true">
+                                Coleções
+                            </button>
+                            <BookmarkButton v-if="reference" :recipe="reference"
+                                @longpress="showCollections = true" />
+                        </div>
+                    </div>
 
                     <ul class="facts">
                         <li><strong>{{ recipe.readyInMinutes }} min</strong><span>Total time</span></li>
@@ -143,6 +167,9 @@ onBeforeUnmount(() => {
             </template>
         </div>
     </div>
+
+    <CollectionsModal v-if="showCollections && reference" :recipe="reference"
+        @close="showCollections = false" />
 </template>
 
 <style scoped>
@@ -200,6 +227,37 @@ onBeforeUnmount(() => {
 
 .content h2 {
     margin: 0 0 16px;
+}
+
+.title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.title-row h2 {
+    margin: 0;
+}
+
+.title-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+}
+
+.collections-btn {
+    width: auto;
+    min-height: 0;
+    padding: 6px 12px;
+    border: 1px solid #198754;
+    border-radius: 999px;
+    background: transparent;
+    color: #198754;
+    font-size: 0.85rem;
+    cursor: pointer;
 }
 
 .content h3 {
