@@ -6,13 +6,11 @@ import { CATEGORIES, UNITS } from '@/domain/items'
 import { find } from '@/services/profiles'
 import { findAll, subscribe } from '@/services/items'
 import type { InventoryItem } from '@/types/item'
-import { getCategories } from '@/services/categories'
 
 const router = useRouter()
 const profile = find()
 const items = ref<InventoryItem[]>(findAll())
 const now = ref(new Date())
-const categoriesList = getCategories()
 
 let unsubscribe: (() => void) | undefined
 let clock: ReturnType<typeof setInterval> | undefined
@@ -21,7 +19,6 @@ onMounted(() => {
   unsubscribe = subscribe((value) => {
     items.value = value
   })
-  // Atualiza o "agora" para os alertas mudarem com o passar do tempo.
   clock = setInterval(() => {
     now.value = new Date()
   }, 60_000)
@@ -44,8 +41,12 @@ function editProfile() {
   router.push({ name: 'setup' })
 }
 
-function addCategory(){
-  router.push({name: 'category-entry'})
+function addCategory() {
+  router.push({ name: 'category-entry' })
+}
+
+function recipies() {
+  router.push({ name: 'recipes' })
 }
 
 </script>
@@ -65,6 +66,7 @@ function addCategory(){
       <div class="action-buttons" style="display: flex; gap: 10px; margin-bottom: 20px;">
         <button class="add" @click="addProduct">Adicionar produto</button>
         <button class="add" @click="addCategory">Adicionar categoria</button>
+        <button class="recipe" @click="recipies">Procurar receitas</button>
       </div>
 
       <h2>Dispensa</h2>
@@ -114,6 +116,13 @@ main {
 }
 
 .add {
+  width: auto;
+  margin-top: 1rem;
+  padding-inline: 1.25rem;
+}
+
+
+.recipe {
   width: auto;
   margin-top: 1rem;
   padding-inline: 1.25rem;
