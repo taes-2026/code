@@ -49,6 +49,10 @@ function recipies() {
   router.push({ name: 'recipes' })
 }
 
+function bookmarks() {
+  router.push({ name: 'bookmarks' })
+}
+
 </script>
 
 <template>
@@ -67,6 +71,7 @@ function recipies() {
         <button class="add" @click="addProduct">Adicionar produto</button>
         <button class="add" @click="addCategory">Adicionar categoria</button>
         <button class="recipe" @click="recipies">Procurar receitas</button>
+        <button class="recipe" @click="bookmarks">Receitas guardadas</button>
       </div>
 
       <h2>Dispensa</h2>
