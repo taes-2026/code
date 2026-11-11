@@ -6,13 +6,11 @@ import { CATEGORIES, UNITS } from '@/domain/items'
 import { find } from '@/services/profiles'
 import { findAll, subscribe } from '@/services/items'
 import type { InventoryItem } from '@/types/item'
-import { getCategories } from '@/services/categories'
 
 const router = useRouter()
 const profile = find()
 const items = ref<InventoryItem[]>(findAll())
 const now = ref(new Date())
-const categoriesList = getCategories()
 
 let unsubscribe: (() => void) | undefined
 let clock: ReturnType<typeof setInterval> | undefined
@@ -21,7 +19,6 @@ onMounted(() => {
   unsubscribe = subscribe((value) => {
     items.value = value
   })
-  // Atualiza o "agora" para os alertas mudarem com o passar do tempo.
   clock = setInterval(() => {
     now.value = new Date()
   }, 60_000)

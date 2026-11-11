@@ -27,6 +27,21 @@ export async function searchRecipes(query = '', number = 12): Promise<RecipeSumm
   return data.results
 }
 
+export async function searchRecipesByIngredients(ingredients: string[], number = 12): Promise<RecipeSummary[]> {
+  if (ingredients.length === 0) return []
+
+  const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
+  if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
+
+  const params = new URLSearchParams({ apiKey, ingredients: ingredients.join(','), number: String(number), ignorePantry: 'true' })
+
+  const response = await fetch(`https://api.spoonacular.com/recipes/findByIngredients?${params}`)
+  if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)
+
+  const data: RecipeSummary[] = await response.json()
+  return data
+}
+
 export interface RecipeIngredient {
   id: number
   name: string

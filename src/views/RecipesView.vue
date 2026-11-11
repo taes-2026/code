@@ -1,13 +1,31 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { searchRecipes, type RecipeSummary } from '@/services/recipes'
+import { searchRecipes, type RecipeSummary, searchRecipesByIngredients } from '@/services/recipes'
 import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
+import ChoosePantrysForSearchModal from '@/components/ChoosePantrysForSearchModal.vue'
 
 const recipes = ref<RecipeSummary[]>([])
 const query = ref('')
 const loading = ref(false)
 const error = ref('')
 const selectedRecipeId = ref<number | null>(null)
+const showIngredientsModal = ref(false)
+const ingredients = ref<string[]>([])
+
+async function onIngredientsConfirm(selected: string[]) {
+    ingredients.value = selected
+    showIngredientsModal.value = false
+    loading.value = true
+    error.value = ''
+    try {
+        recipes.value = await searchRecipesByIngredients(selected)
+    } catch (e) {
+        error.value = e instanceof Error ? e.message : 'Erro desconhecido'
+        recipes.value = []
+    } finally {
+        loading.value = false
+    }
+}
 
 async function loadRecipes() {
     loading.value = true
@@ -37,30 +55,26 @@ onMounted(loadRecipes)
             <button type="submit" class="btn-submit" :disabled="loading">Pesquisar</button>
         </form>
 
+        <button type="button" class="btn-submit" :disabled="loading" @click="showIngredientsModal = true">Select
+            items</button>
+
         <p v-if="loading" class="status">A carregar receitas...</p>
         <p v-else-if="error" class="status error">{{ error }}</p>
         <p v-else-if="recipes.length === 0" class="status">Nenhuma receita encontrada.</p>
 
         <div v-else class="recipe-grid">
-            <article
-                v-for="recipe in recipes"
-                :key="recipe.id"
-                class="recipe-card"
-                role="button"
-                tabindex="0"
-                @click="selectedRecipeId = recipe.id"
-                @keydown.enter="selectedRecipeId = recipe.id"
-            >
+            <article v-for="recipe in recipes" :key="recipe.id" class="recipe-card" role="button" tabindex="0"
+                @click="selectedRecipeId = recipe.id" @keydown.enter="selectedRecipeId = recipe.id">
                 <img :src="recipe.image" :alt="recipe.title" loading="lazy" />
                 <h3>{{ recipe.title }}</h3>
             </article>
         </div>
 
-        <RecipeDetailModal
-            v-if="selectedRecipeId !== null"
-            :recipe-id="selectedRecipeId"
-            @close="selectedRecipeId = null"
-        />
+        <ChoosePantrysForSearchModal v-if="showIngredientsModal" :initial-selected="ingredients"
+            @close="showIngredientsModal = false" @confirm="onIngredientsConfirm" />
+
+        <RecipeDetailModal v-if="selectedRecipeId !== null" :recipe-id="selectedRecipeId"
+            @close="selectedRecipeId = null" />
     </main>
 </template>
 
