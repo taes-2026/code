@@ -67,7 +67,7 @@ function bookmarks() {
 
       <p>Bem-vindo, {{ profile?.name }}</p>
 
-      <div class="action-buttons" style="display: flex; gap: 10px; margin-bottom: 20px;">
+      <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
         <button class="add" @click="addProduct">Adicionar produto</button>
         <button class="add" @click="addCategory">Adicionar categoria</button>
         <button class="recipe" @click="recipies">Procurar receitas</button>

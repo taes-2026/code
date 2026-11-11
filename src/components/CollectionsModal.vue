@@ -178,8 +178,8 @@ onBeforeUnmount(() => {
 }
 
 .close-btn {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   min-height: 0;
   padding: 0;
   flex: none;
@@ -248,8 +248,8 @@ label.collection:hover {
 }
 
 .delete-btn {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   min-height: 0;
   padding: 0;
   border: none;
