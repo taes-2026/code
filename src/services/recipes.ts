@@ -1,4 +1,6 @@
 
+import { getActiveProfile } from '@/services/profiles'
+
 export interface RecipeSummary {
   id: number
   title: string
@@ -19,6 +21,35 @@ export async function searchRecipes(query = '', number = 12): Promise<RecipeSumm
 
   const params = new URLSearchParams({ apiKey, number: String(number) })
   if (query.trim()) params.set('query', query.trim())
+
+  const profile = getActiveProfile()
+  if (profile) {
+    if (profile.diet && profile.diet !== 'omnivore') {
+      const dietMap: Record<string, string> = {
+        vegetarian: 'vegetarian',
+        vegan: 'vegan',
+        pescatarian: 'pescetarian',
+      }
+      params.set('diet', dietMap[profile.diet] ?? profile.diet)
+    }
+
+    const intolerances: string[] = []
+    if (profile.allergies?.includes('lactose')) intolerances.push('dairy')
+    if (profile.allergies?.includes('peanuts')) intolerances.push('peanut')
+    if (profile.restrictions?.includes('gluten')) intolerances.push('gluten')
+
+    if (intolerances.length > 0) {
+      params.set('intolerances', intolerances.join(','))
+    }
+
+    const excludes: string[] = []
+    if (profile.restrictions?.includes('pork')) excludes.push('pork')
+    if (profile.restrictions?.includes('sugar')) excludes.push('sugar')
+
+    if (excludes.length > 0) {
+      params.set('excludeIngredients', excludes.join(','))
+    }
+  }
 
   const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`)
   if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)

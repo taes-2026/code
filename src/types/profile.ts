@@ -8,6 +8,7 @@ export type ProfileForm = {
 }
 
 export interface Profile extends ProfileForm {
+  id: string
   createdAt: string
   updatedAt: string
 }

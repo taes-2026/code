@@ -6,6 +6,8 @@ const PREFIX = 'smartpantry'
 
 type StorageData = {
   profile: Profile | null
+  profiles: Profile[]
+  activeProfileId: string | null
   items: InventoryItem[]
   categories: Record<string, string>
   bookmarks: RecipeBookmark[]
@@ -33,6 +35,19 @@ function isInventoryItem(value: unknown): value is InventoryItem {
     typeof item.expirationDate === 'string' &&
     typeof item.createdAt === 'string' &&
     typeof item.updatedAt === 'string'
+  )
+}
+
+function isProfile(value: unknown): value is Profile {
+  if (typeof value !== 'object' || value === null) return false
+
+  const profile = value as Record<string, unknown>
+
+  return (
+    typeof profile.name === 'string' &&
+    typeof profile.diet === 'string' &&
+    Array.isArray(profile.allergies) &&
+    Array.isArray(profile.restrictions)
   )
 }
 
@@ -66,8 +81,17 @@ function isRecipeCollection(value: unknown): value is RecipeCollection {
 const entries: { [K in StorageKey]: Entry<StorageData[K]> } = {
   profile: {
     default: () => null,
-    check: (value): value is Profile | null =>
-      value === null || (typeof value === 'object' && typeof (value as Profile).name === 'string'),
+    check: (value): value is Profile | null => value === null || isProfile(value),
+  },
+  profiles: {
+    default: () => [],
+    check: (value): value is Profile[] =>
+      Array.isArray(value) && value.every(isProfile),
+  },
+  activeProfileId: {
+    default: () => null,
+    check: (value): value is string | null =>
+      value === null || typeof value === 'string',
   },
   items: {
     default: () => [],

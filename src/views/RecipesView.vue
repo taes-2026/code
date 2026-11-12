@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { searchRecipes, type RecipeSummary, searchRecipesByIngredients } from '@/services/recipes'
+import { getActiveProfile } from '@/services/profiles'
+import { DIETS } from '@/domain/diet'
 import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
 import ChoosePantrysForSearchModal from '@/components/ChoosePantrysForSearchModal.vue'
 import BookmarkButton from '@/components/BookmarkButton.vue'
@@ -15,6 +17,7 @@ const selectedRecipeId = ref<number | null>(null)
 const pickerRecipe = ref<RecipeReference | null>(null)
 const showIngredientsModal = ref(false)
 const ingredients = ref<string[]>([])
+const activeProfile = ref(getActiveProfile())
 
 function openCollections(recipe: RecipeSummary) {
     pickerRecipe.value = { id: recipe.id, title: recipe.title, image: recipe.image }
@@ -36,6 +39,7 @@ async function onIngredientsConfirm(selected: string[]) {
 }
 
 async function loadRecipes() {
+    activeProfile.value = getActiveProfile()
     loading.value = true
     error.value = ''
     try {
@@ -60,6 +64,10 @@ onMounted(loadRecipes)
                 <router-link to="/" class="back-link">Voltar</router-link>
             </div>
         </header>
+
+        <p v-if="activeProfile" class="profile-hint">
+            Sugestões adaptadas ao perfil de <strong>{{ activeProfile.name }}</strong> ({{ DIETS[activeProfile.diet] ?? activeProfile.diet }})
+        </p>
 
         <form class="search-form" @submit.prevent="loadRecipes">
             <input v-model="query" type="search" placeholder="Pesquisar receitas (ex: pasta)" />
@@ -107,6 +115,16 @@ onMounted(loadRecipes)
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+}
+
+.profile-hint {
+    font-size: 0.9rem;
+    color: #15803d;
+    margin-bottom: 1rem;
+    background: #f0fdf4;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #bbf7d0;
 }
 
 .back-link {
