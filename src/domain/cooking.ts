@@ -1,14 +1,21 @@
 import type { RecipeDetails, RecipeIngredient } from '@/services/recipes'
+import { formatDuration } from '@/domain/timers'
 
 export interface StepSegment {
   text: string
   highlight: boolean
 }
 
+export interface TimedAction {
+  seconds: number
+  label: string
+}
+
 export interface CookingStep {
   text: string
   segments: StepSegment[]
   ingredients: RecipeIngredient[]
+  timedActions: TimedAction[]
 }
 
 function escapeRegExp(value: string): string {
@@ -75,6 +82,32 @@ function ingredientsInStep(text: string, recipe: RecipeDetails): RecipeIngredien
   )
 }
 
+const MAX_TIMER_SECONDS = 6 * 3600
+const MIN_TIMER_SECONDS = 10
+
+export function detectTimedActions(text: string): TimedAction[] {
+  const pattern = /(\d+(?:[.,]\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)\b/gi
+  const actions: TimedAction[] = []
+  const seen = new Set<number>()
+
+  for (const match of text.matchAll(pattern)) {
+    const amount = Number((match[1] ?? '').replace(',', '.'))
+    const unit = (match[2] ?? '').toLowerCase()
+
+    if (!Number.isFinite(amount) || amount <= 0) continue
+
+    const multiplier = unit.startsWith('h') ? 3600 : unit.startsWith('m') ? 60 : 1
+    const seconds = Math.round(amount * multiplier)
+
+    if (seconds < MIN_TIMER_SECONDS || seconds > MAX_TIMER_SECONDS || seen.has(seconds)) continue
+
+    seen.add(seconds)
+    actions.push({ seconds, label: formatDuration(seconds) })
+  }
+
+  return actions
+}
+
 export function buildCookingSteps(recipe: RecipeDetails): CookingStep[] {
   const highlightPattern = buildHighlightPattern(recipe)
   const analyzed = (recipe.analyzedInstructions ?? []).flatMap((group) => group.steps ?? [])
@@ -88,5 +121,6 @@ export function buildCookingSteps(recipe: RecipeDetails): CookingStep[] {
       text,
       segments: buildSegments(text, highlightPattern),
       ingredients: ingredientsInStep(text, recipe),
+      timedActions: detectTimedActions(text),
     }))
 }
