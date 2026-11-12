@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { buildCookingSteps } from '@/domain/cooking'
+import { buildCookingSteps, type TimedAction } from '@/domain/cooking'
+import { formatClock } from '@/domain/timers'
+import { useTimers } from '@/composables/useTimers'
 import type { RecipeDetails } from '@/services/recipes'
 
 const props = defineProps<{ recipe: RecipeDetails }>()
@@ -8,6 +10,13 @@ const emit = defineEmits<{ close: [] }>()
 
 const steps = computed(() => buildCookingSteps(props.recipe))
 const current = ref(0)
+
+const { timers, finishedTimers, addTimer, toggleTimer, resetTimer, dismissTimer, dismissFinished } =
+  useTimers()
+
+function startStepTimer(action: TimedAction, stepNumber: number) {
+  addTimer({ seconds: action.seconds, label: action.label, stepNumber })
+}
 
 const isLast = computed(() => current.value >= steps.value.length - 1)
 const progress = computed(() =>
@@ -116,6 +125,7 @@ onBeforeUnmount(() => {
               :key="index"
               class="slide"
               :aria-hidden="index !== current"
+              :inert="index !== current"
             >
               <p class="step-count">Passo {{ index + 1 }} de {{ steps.length }}</p>
 
@@ -127,20 +137,92 @@ onBeforeUnmount(() => {
                   </template>
                 </p>
 
-                <aside class="ingredients">
-                  <h3>Ingredientes deste passo</h3>
-                  <ul v-if="step.ingredients.length">
-                    <li
-                      v-for="(ingredient, ingredientIndex) in step.ingredients"
-                      :key="`${ingredient.id}-${ingredientIndex}`"
-                    >
-                      {{ ingredient.original }}
-                    </li>
-                  </ul>
-                  <p v-else class="muted">Sem ingredientes específicos neste passo.</p>
-                </aside>
+                <div class="slide-aside">
+                  <aside class="ingredients">
+                    <h3>Ingredientes deste passo</h3>
+                    <ul v-if="step.ingredients.length">
+                      <li
+                        v-for="(ingredient, ingredientIndex) in step.ingredients"
+                        :key="`${ingredient.id}-${ingredientIndex}`"
+                      >
+                        {{ ingredient.original }}
+                      </li>
+                    </ul>
+                    <p v-else class="muted">Sem ingredientes específicos neste passo.</p>
+                  </aside>
+
+                  <aside v-if="step.timedActions.length" class="timers">
+                    <h3>Temporizadores</h3>
+                    <div class="timer-presets">
+                      <button
+                        v-for="action in step.timedActions"
+                        :key="action.seconds"
+                        type="button"
+                        class="timer-preset"
+                        @click="startStepTimer(action, index + 1)"
+                      >
+                        <span aria-hidden="true">▶</span> {{ action.label }}
+                      </button>
+                    </div>
+                  </aside>
+                </div>
               </div>
             </section>
+          </div>
+        </div>
+
+        <div v-if="finishedTimers.length" class="timer-banner" role="alert">
+          <span>Tempo terminado: {{ finishedTimers.map((timer) => timer.label).join(', ') }}</span>
+          <button type="button" @click="dismissFinished">Parar</button>
+        </div>
+
+        <div v-if="timers.length" class="timer-panel" role="group" aria-label="Temporizadores ativos">
+          <div
+            v-for="timer in timers"
+            :key="timer.id"
+            class="timer-row"
+            :class="{ finished: timer.finished }"
+          >
+            <div class="timer-main">
+              <span class="timer-clock">{{ formatClock(timer.remaining) }}</span>
+              <span class="timer-meta">{{ timer.label }} · Passo {{ timer.stepNumber }}</span>
+            </div>
+
+            <div class="timer-actions">
+              <button
+                type="button"
+                class="timer-btn"
+                :aria-label="
+                  timer.running
+                    ? 'Pausar temporizador'
+                    : timer.finished
+                      ? 'Reiniciar temporizador'
+                      : 'Retomar temporizador'
+                "
+                :title="timer.running ? 'Pausar' : timer.finished ? 'Reiniciar' : 'Retomar'"
+                @click="toggleTimer(timer)"
+              >
+                {{ timer.running ? '‖' : '▶' }}
+              </button>
+              <button
+                type="button"
+                class="timer-btn"
+                aria-label="Reiniciar temporizador"
+                title="Reiniciar"
+                @click="resetTimer(timer)"
+              >
+                ↺
+              </button>
+              <button
+                type="button"
+                class="timer-btn"
+                aria-label="Fechar temporizador"
+                title="Fechar"
+                @click="dismissTimer(timer)"
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
 
@@ -307,6 +389,167 @@ onBeforeUnmount(() => {
   margin: 0;
   color: #6b7280;
   font-size: 0.9rem;
+}
+
+.slide-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timers {
+  padding: 16px 18px;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.timers h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  color: #198754;
+}
+
+.timer-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.timer-preset {
+  width: auto;
+  min-height: 40px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #198754;
+  border-radius: 999px;
+  background: #eaf5ef;
+  color: #0f5132;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.timer-preset:hover {
+  background: #d1e7dd;
+}
+
+.timer-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #dc3545;
+  color: #fff;
+  font-weight: 600;
+  animation: timer-pulse 1.1s infinite;
+}
+
+.timer-banner button {
+  width: auto;
+  min-height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  color: #b02a37;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.timer-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 32vh;
+  overflow-y: auto;
+  padding-top: 10px;
+}
+
+.timer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.timer-row.finished {
+  border-color: #dc3545;
+  background: #fdecee;
+  animation: timer-pulse 1.1s infinite;
+}
+
+.timer-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timer-clock {
+  font-size: 1.45rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.timer-row.finished .timer-clock {
+  color: #b02a37;
+}
+
+.timer-meta {
+  font-size: 0.78rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.timer-btn {
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 50%;
+  background: #fff;
+  color: #1f2937;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.timer-btn:hover {
+  background: #f1f5f3;
+}
+
+@keyframes timer-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(220, 53, 69, 0);
+  }
 }
 
 .cook-footer {
