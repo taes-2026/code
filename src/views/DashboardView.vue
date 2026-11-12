@@ -3,12 +3,15 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ExpirationAlert from '@/components/ExpirationAlert.vue'
 import { CATEGORIES, UNITS } from '@/domain/items'
-import { find } from '@/services/profiles'
+import { DIETS } from '@/domain/diet'
+import { findAll as findAllProfiles, getActiveProfile, switchProfile } from '@/services/profiles'
 import { findAll, subscribe } from '@/services/items'
 import type { InventoryItem } from '@/types/item'
+import type { Profile } from '@/types/profile'
 
 const router = useRouter()
-const profile = find()
+const profiles = ref<Profile[]>(findAllProfiles())
+const profile = ref<Profile | null>(getActiveProfile())
 const items = ref<InventoryItem[]>(findAll())
 const now = ref(new Date())
 
@@ -33,12 +36,27 @@ function formatDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString('pt-PT')
 }
 
-function addProduct() {
-  router.push({ name: 'product-entry' })
+function onSwitchProfile(event: Event) {
+  const target = event.target as HTMLSelectElement
+  if (!target.value) return
+  const switched = switchProfile(target.value)
+  profile.value = switched
+}
+
+function newProfile() {
+  router.push({ name: 'setup', query: { new: 'true' } })
 }
 
 function editProfile() {
-  router.push({ name: 'setup' })
+  if (profile.value) {
+    router.push({ name: 'setup', query: { id: profile.value.id } })
+  } else {
+    router.push({ name: 'setup' })
+  }
+}
+
+function addProduct() {
+  router.push({ name: 'product-entry' })
 }
 
 function addCategory() {
@@ -52,20 +70,36 @@ function recipies() {
 function bookmarks() {
   router.push({ name: 'bookmarks' })
 }
-
 </script>
 
 <template>
   <div class="dashboard">
     <header>
       <h1>Dashboard</h1>
-      <button class="secondary" @click="editProfile">Editar perfil</button>
+      <div class="profile-controls">
+        <label for="profile-select" class="profile-label">Perfil:</label>
+        <select
+          id="profile-select"
+          class="profile-select"
+          :value="profile?.id"
+          @change="onSwitchProfile"
+        >
+          <option v-for="p in profiles" :key="p.id" :value="p.id">
+            {{ p.name }} ({{ DIETS[p.diet] ?? p.diet }})
+          </option>
+        </select>
+        <button class="secondary btn-profile" @click="newProfile">+ Novo</button>
+        <button class="secondary btn-profile" @click="editProfile">Editar</button>
+      </div>
     </header>
 
     <main>
       <ExpirationAlert :items="items" :now="now" />
 
-      <p>Bem-vindo, {{ profile?.name }}</p>
+      <p class="welcome-text">
+        Bem-vindo, <strong>{{ profile?.name }}</strong>
+        <span v-if="profile" class="profile-diet-badge">({{ DIETS[profile.diet] ?? profile.diet }})</span>
+      </p>
 
       <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
         <button class="add" @click="addProduct">Adicionar produto</button>
@@ -105,10 +139,48 @@ header {
   align-items: center;
   padding: 1rem;
   border-bottom: 1px solid var(--color-border);
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 h1 {
   font-size: 1.25rem;
+}
+
+.profile-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.profile-select {
+  width: auto;
+  min-height: 36px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.btn-profile {
+  width: auto;
+  min-height: 36px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.welcome-text {
+  margin-bottom: 1rem;
+}
+
+.profile-diet-badge {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-left: 0.25rem;
 }
 
 h2 {
@@ -125,7 +197,6 @@ main {
   margin-top: 1rem;
   padding-inline: 1.25rem;
 }
-
 
 .recipe {
   width: auto;
