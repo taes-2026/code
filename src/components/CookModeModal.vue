@@ -3,16 +3,27 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { buildCookingSteps, type TimedAction } from '@/domain/cooking'
 import { formatClock } from '@/domain/timers'
 import { useTimers } from '@/composables/useTimers'
+import { useBookmarks } from '@/stores/bookmarks'
 import type { RecipeDetails } from '@/services/recipes'
+import type { RecipeReference } from '@/types/bookmark'
 
 const props = defineProps<{ recipe: RecipeDetails }>()
 const emit = defineEmits<{ close: [] }>()
 
 const steps = computed(() => buildCookingSteps(props.recipe))
 const current = ref(0)
+const completed = ref(false)
 
 const { timers, finishedTimers, addTimer, toggleTimer, resetTimer, dismissTimer, dismissFinished } =
   useTimers()
+const { isBookmarked, toggle } = useBookmarks()
+
+const reference = computed<RecipeReference>(() => ({
+  id: props.recipe.id,
+  title: props.recipe.title,
+  image: props.recipe.image,
+}))
+const saved = computed(() => isBookmarked(props.recipe.id))
 
 function startStepTimer(action: TimedAction, stepNumber: number) {
   addTimer({ seconds: action.seconds, label: action.label, stepNumber })
@@ -29,6 +40,14 @@ function next() {
 
 function previous() {
   if (current.value > 0) current.value -= 1
+}
+
+function finish() {
+  completed.value = true
+}
+
+function saveRecipe() {
+  if (!saved.value) toggle(reference.value)
 }
 
 let touchStart: { x: number; y: number } | null = null
@@ -115,6 +134,25 @@ onBeforeUnmount(() => {
       <div v-if="steps.length === 0" class="empty">
         <p>Esta receita não tem instruções disponíveis.</p>
         <button type="button" class="nav primary" @click="emit('close')">Fechar</button>
+      </div>
+
+      <div v-else-if="completed" class="complete">
+        <span class="complete-check" aria-hidden="true">✓</span>
+        <h2>Refeição concluída!</h2>
+        <p class="complete-text">Guarda esta receita para a voltares a cozinhar mais tarde.</p>
+
+        <p v-if="saved" class="saved-note" role="status">
+          Receita guardada nas tuas receitas.
+        </p>
+
+        <div class="complete-actions">
+          <button v-if="!saved" type="button" class="nav primary" @click="saveRecipe">
+            Guardar receita
+          </button>
+          <button type="button" class="nav secondary" @click="emit('close')">
+            {{ saved ? 'Concluir' : 'Agora não' }}
+          </button>
+        </div>
       </div>
 
       <template v-else>
@@ -234,7 +272,7 @@ onBeforeUnmount(() => {
           <span class="position">{{ current + 1 }} / {{ steps.length }}</span>
 
           <button v-if="!isLast" type="button" class="nav primary" @click="next">Seguinte →</button>
-          <button v-else type="button" class="nav primary" @click="emit('close')">Terminar</button>
+          <button v-else type="button" class="nav primary" @click="finish">Concluir refeição</button>
         </footer>
       </template>
     </div>
@@ -606,6 +644,63 @@ onBeforeUnmount(() => {
   gap: 16px;
   text-align: center;
   color: #6b7280;
+}
+
+.complete {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 8px;
+  text-align: center;
+}
+
+.complete-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #198754;
+  color: #fff;
+  font-size: 2.1rem;
+  font-weight: 700;
+}
+
+.complete h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.complete-text {
+  margin: 0;
+  max-width: 38ch;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.saved-note {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #d1e7dd;
+  color: #0f5132;
+  font-weight: 600;
+}
+
+.complete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.complete-actions .nav {
+  min-width: 150px;
 }
 
 @media (min-width: 600px) {
