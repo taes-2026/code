@@ -131,7 +131,7 @@ onMounted(loadRecipes)
             <div class="sort-controls">
                 <label for="sort-select">Ordenar por:</label>
                 <select id="sort-select" v-model="sortBy" class="sort-select">
-                    <option value="expiring">⚡ Produtos a expirar primeiro</option>
+                    <option value="expiring">Produtos a expirar primeiro</option>
                     <option value="overlap">Maior correspondência (%)</option>
                     <option value="missing">Menos ingredientes em falta</option>
                     <option value="name">Nome (A-Z)</option>
@@ -155,7 +155,7 @@ onMounted(loadRecipes)
                             {{ recipe.overlapPercentage }}%
                         </span>
                         <span v-if="recipe.usesExpiring" class="card-expiring-badge" title="Usa ingredientes a expirar">
-                            ⚡ A expirar
+                            A expirar
                         </span>
                     </div>
                     <BookmarkButton class="card-bookmark" :recipe="recipe"
@@ -165,10 +165,10 @@ onMounted(loadRecipes)
                     <h3>{{ recipe.title }}</h3>
                     <div v-if="recipe.totalIngredients" class="card-stats">
                         <span class="stat-badge in-stock">
-                            ✓ {{ recipe.usedIngredientCount }} em stock
+                            {{ recipe.usedIngredientCount }} em stock
                         </span>
                         <span v-if="recipe.missedIngredientCount" class="stat-badge missing">
-                            ✕ {{ recipe.missedIngredientCount }} em falta
+                            {{ recipe.missedIngredientCount }} em falta
                         </span>
                     </div>
                     <p v-if="recipe.usesExpiring && recipe.expiringIngredients?.length" class="card-expiring-info">

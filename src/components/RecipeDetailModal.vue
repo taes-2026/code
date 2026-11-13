@@ -172,7 +172,7 @@ onBeforeUnmount(() => {
                                 <span>{{ overlapData.inStockCount }} de {{ overlapData.totalIngredients }} ingredientes em stock</span>
                             </div>
                             <span v-if="overlapData.usesExpiring" class="expiring-pill">
-                                ⚡ Utiliza {{ overlapData.expiringIngredients.length }} ingrediente{{ overlapData.expiringIngredients.length > 1 ? 's' : '' }} a expirar
+                                Utiliza {{ overlapData.expiringIngredients.length }} ingrediente{{ overlapData.expiringIngredients.length > 1 ? 's' : '' }} a expirar
                             </span>
                         </div>
                     </div>
@@ -194,9 +194,9 @@ onBeforeUnmount(() => {
                             <li v-for="(ing, i) in overlapData.ingredients" :key="`${ing.name}-${i}`"
                                 :class="['ing-row', { 'is-stock': ing.inStock, 'is-missing': !ing.inStock, 'is-expiring': ing.isExpiring }]">
                                 <span class="ing-badge" :class="ing.isExpiring ? 'badge-expiring' : ing.inStock ? 'badge-stock' : 'badge-missing'">
-                                    <template v-if="ing.isExpiring">⚡ A expirar</template>
-                                    <template v-else-if="ing.inStock">✓ Em stock</template>
-                                    <template v-else>✕ Em falta</template>
+                                    <template v-if="ing.isExpiring">A expirar</template>
+                                    <template v-else-if="ing.inStock">Em stock</template>
+                                    <template v-else>Em falta</template>
                                 </span>
                                 <span class="ing-name">
                                     {{ ing.original || ing.name }}

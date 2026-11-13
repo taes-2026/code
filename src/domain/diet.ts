@@ -13,7 +13,7 @@ export const ALLERGIES = {
 export const RESTRICTIONS = {
   gluten: 'Glúten',
   pork: 'Porco',
-  sugar: 'Acucar (nao tenho a cedilha e nao vou pesquisar para colar aqui)',
+  sugar: 'Açucar',
 } as const
 
 export type Diet = keyof typeof DIETS
