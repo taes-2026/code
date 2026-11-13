@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { createCategory, getCategories } from '@/services/categories'
-const router = useRouter()
 const categoryName = ref('')
 const categoriesList = ref(getCategories())
 

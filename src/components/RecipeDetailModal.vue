@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getRecipeInformation, type RecipeDetails } from '@/services/recipes'
+import { findAll as findAllPantryItems } from '@/services/items'
+import { calculateRecipeOverlap, type OverlapResult } from '@/domain/overlap'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import CollectionsModal from '@/components/CollectionsModal.vue'
 import CookModeModal from '@/components/CookModeModal.vue'
@@ -15,6 +17,18 @@ const loading = ref(false)
 const error = ref('')
 const showCollections = ref(false)
 const showCookMode = ref(false)
+const pantryItems = ref(findAllPantryItems())
+
+const overlapData = computed<OverlapResult | null>(() => {
+    if (!recipe.value || !recipe.value.extendedIngredients) return null
+    return calculateRecipeOverlap(recipe.value.extendedIngredients, pantryItems.value, new Date())
+})
+
+function getOverlapTone(pct: number): string {
+    if (pct >= 75) return 'tone-high'
+    if (pct >= 40) return 'tone-mid'
+    return 'tone-low'
+}
 
 const { isBookmarked } = useBookmarks()
 
@@ -148,13 +162,53 @@ onBeforeUnmount(() => {
                             }}</span>
                     </p>
 
+                    <div v-if="overlapData" class="overlap-card">
+                        <div class="overlap-header">
+                            <span class="overlap-pct-badge" :class="getOverlapTone(overlapData.overlapPercentage)">
+                                {{ overlapData.overlapPercentage }}%
+                            </span>
+                            <div class="overlap-text">
+                                <strong>Correspondência da despensa</strong>
+                                <span>{{ overlapData.inStockCount }} de {{ overlapData.totalIngredients }} ingredientes em stock</span>
+                            </div>
+                            <span v-if="overlapData.usesExpiring" class="expiring-pill">
+                                ⚡ Utiliza {{ overlapData.expiringIngredients.length }} ingrediente{{ overlapData.expiringIngredients.length > 1 ? 's' : '' }} a expirar
+                            </span>
+                        </div>
+                    </div>
+
                     <section v-if="summary">
                         <h3>Summary</h3>
                         <p class="summary">{{ summary }}</p>
                     </section>
 
-                    <section v-if="recipe.extendedIngredients.length">
-                        <h3>Ingredients</h3>
+                    <section v-if="overlapData && overlapData.ingredients.length">
+                        <div class="ingredients-header">
+                            <h3>Ingredientes</h3>
+                            <div class="stock-summary-pills">
+                                <span class="pill pill-stock">{{ overlapData.inStockCount }} em stock</span>
+                                <span v-if="overlapData.missingCount" class="pill pill-missing">{{ overlapData.missingCount }} em falta</span>
+                            </div>
+                        </div>
+                        <ul class="ingredients-list">
+                            <li v-for="(ing, i) in overlapData.ingredients" :key="`${ing.name}-${i}`"
+                                :class="['ing-row', { 'is-stock': ing.inStock, 'is-missing': !ing.inStock, 'is-expiring': ing.isExpiring }]">
+                                <span class="ing-badge" :class="ing.isExpiring ? 'badge-expiring' : ing.inStock ? 'badge-stock' : 'badge-missing'">
+                                    <template v-if="ing.isExpiring">⚡ A expirar</template>
+                                    <template v-else-if="ing.inStock">✓ Em stock</template>
+                                    <template v-else>✕ Em falta</template>
+                                </span>
+                                <span class="ing-name">
+                                    {{ ing.original || ing.name }}
+                                    <small v-if="ing.matchedPantryItem" class="matched-hint">
+                                        (Na despensa: {{ ing.matchedPantryItem.name }})
+                                    </small>
+                                </span>
+                            </li>
+                        </ul>
+                    </section>
+                    <section v-else-if="recipe.extendedIngredients.length">
+                        <h3>Ingredientes</h3>
                         <ul class="ingredients">
                             <li v-for="(ing, i) in recipe.extendedIngredients" :key="`${ing.id}-${i}`">
                                 {{ ing.original }}
@@ -366,5 +420,156 @@ onBeforeUnmount(() => {
 
 .status.error {
     color: #dc3545;
+}
+
+.overlap-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+}
+
+.overlap-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.overlap-pct-badge {
+    font-size: 1.25rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 8px;
+    color: #fff;
+}
+
+.tone-high {
+    background-color: #198754;
+}
+
+.tone-mid {
+    background-color: #f59e0b;
+}
+
+.tone-low {
+    background-color: #64748b;
+}
+
+.overlap-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.overlap-text strong {
+    font-size: 0.95rem;
+}
+
+.overlap-text span {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.expiring-pill {
+    background: #fef3c7;
+    color: #b45309;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid #fde68a;
+}
+
+.ingredients-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.ingredients-header h3 {
+    margin: 0;
+}
+
+.stock-summary-pills {
+    display: flex;
+    gap: 8px;
+}
+
+.pill {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.pill-stock {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.pill-missing {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.ingredients-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ing-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #f1f5f9;
+}
+
+.ing-row.is-missing {
+    background: #fbfbfb;
+    border-color: #f1f1f1;
+}
+
+.ing-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.badge-stock {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.badge-expiring {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.badge-missing {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.ing-name {
+    font-size: 0.95rem;
+    flex: 1;
+}
+
+.matched-hint {
+    color: #15803d;
+    margin-left: 6px;
+    font-style: italic;
 }
 </style>
