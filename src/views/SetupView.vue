@@ -3,7 +3,7 @@ import '@/assets/setup.css'
 
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ALLERGIES, DIETS, RESTRICTIONS } from '@/domain/diet'
+import { INTOLERANCES, DIETS, RESTRICTIONS } from '@/domain/diet'
 import { create, findAll, find, hasProfile, save } from '@/services/profiles'
 import type { ProfileForm } from '@/types/profile'
 
@@ -20,17 +20,17 @@ const isEditing = existing !== null
 const form = reactive<ProfileForm>(
   existing
     ? {
-        name: existing.name,
-        diet: existing.diet,
-        allergies: [...existing.allergies],
-        restrictions: [...existing.restrictions],
-      }
+      name: existing.name,
+      diet: existing.diet,
+      intolerances: [...existing.intolerances],
+      restrictions: [...existing.restrictions],
+    }
     : {
-        name: '',
-        diet: 'omnivore',
-        allergies: [],
-        restrictions: [],
-      },
+      name: '',
+      diet: 'omnivore',
+      intolerances: [],
+      restrictions: [],
+    },
 )
 const error = ref('')
 const loading = ref(false)
@@ -81,15 +81,15 @@ async function submit() {
       </label>
 
       <fieldset>
-        <legend>Alergias</legend>
-        <label v-for="(label, id) in ALLERGIES" :key="id" class="check">
-          <input v-model="form.allergies" type="checkbox" :value="id" />
+        <legend>Intolerâncias</legend>
+        <label v-for="(label, id) in INTOLERANCES" :key="id" class="check">
+          <input v-model="form.intolerances" type="checkbox" :value="id" />
           {{ label }}
         </label>
       </fieldset>
 
       <fieldset>
-        <legend>Restricoes</legend>
+        <legend>Restrições</legend>
         <label v-for="(label, id) in RESTRICTIONS" :key="id" class="check">
           <input v-model="form.restrictions" type="checkbox" :value="id" />
           {{ label }}
