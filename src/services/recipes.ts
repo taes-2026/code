@@ -25,30 +25,17 @@ export async function searchRecipes(query = '', number = 12): Promise<RecipeSumm
   const profile = getActiveProfile()
   if (profile) {
     if (profile.diet && profile.diet !== 'omnivore') {
-      const dietMap: Record<string, string> = {
-        vegetarian: 'vegetarian',
-        vegan: 'vegan',
-        pescatarian: 'pescetarian',
-      }
-      params.set('diet', dietMap[profile.diet] ?? profile.diet)
+      params.set('diet', profile.diet)
     }
 
-    const intolerances: string[] = []
-    if (profile.allergies?.includes('lactose')) intolerances.push('dairy')
-    if (profile.allergies?.includes('peanuts')) intolerances.push('peanut')
-    if (profile.restrictions?.includes('gluten')) intolerances.push('gluten')
-
-    if (intolerances.length > 0) {
-      params.set('intolerances', intolerances.join(','))
+    if (profile.intolerances.length > 0) {
+      params.set('intolerances', profile.intolerances.join(','))
+    }
+    
+    if (profile.restrictions.length > 0) {
+      params.set('excludeIngredients', profile.restrictions.join(','))
     }
 
-    const excludes: string[] = []
-    if (profile.restrictions?.includes('pork')) excludes.push('pork')
-    if (profile.restrictions?.includes('sugar')) excludes.push('sugar')
-
-    if (excludes.length > 0) {
-      params.set('excludeIngredients', excludes.join(','))
-    }
   }
 
   const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`)
@@ -65,6 +52,22 @@ export async function searchRecipesByIngredients(ingredients: string[], number =
   if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
 
   const params = new URLSearchParams({ apiKey, ingredients: ingredients.join(','), number: String(number), ignorePantry: 'true' })
+
+  const profile = getActiveProfile()
+  if (profile) {
+    if (profile.diet && profile.diet !== 'omnivore') {
+      params.set('diet', profile.diet)
+    }
+
+    if (profile.intolerances.length > 0) {
+      params.set('intolerances', profile.intolerances.join(','))
+    }
+    
+    if (profile.restrictions.length > 0) {
+      params.set('excludeIngredients', profile.restrictions.join(','))
+    }
+
+  }
 
   const response = await fetch(`https://api.spoonacular.com/recipes/findByIngredients?${params}`)
   if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)

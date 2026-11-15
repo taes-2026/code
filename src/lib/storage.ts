@@ -46,7 +46,7 @@ function isProfile(value: unknown): value is Profile {
   return (
     typeof profile.name === 'string' &&
     typeof profile.diet === 'string' &&
-    Array.isArray(profile.allergies) &&
+    Array.isArray(profile.intolerances) &&
     Array.isArray(profile.restrictions)
   )
 }
