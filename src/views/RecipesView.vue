@@ -1,58 +1,60 @@
-<script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { searchRecipes, type RecipeSummary, searchRecipesByIngredients } from '@/services/recipes'
-import { getActiveProfile } from '@/services/profiles'
-import { DIETS } from '@/domain/diet'
-import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
-import ChoosePantrysForSearchModal from '@/components/ChoosePantrysForSearchModal.vue'
-import BookmarkButton from '@/components/BookmarkButton.vue'
-import CollectionsModal from '@/components/CollectionsModal.vue'
-import type { RecipeReference } from '@/types/bookmark'
+    <script setup lang="ts">
+    import { onMounted, ref } from 'vue'
+    import { searchRecipes, getPantryNames, type RecipeSummary } from '@/services/recipes'
+    import { getActiveProfile } from '@/services/profiles'
+    import { DIETS } from '@/domain/diet'
+    import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
+    import ChoosePantrysForSearchModal from '@/components/ChoosePantrysForSearchModal.vue'
+    import BookmarkButton from '@/components/BookmarkButton.vue'
+    import CollectionsModal from '@/components/CollectionsModal.vue'
+    import type { RecipeReference } from '@/types/bookmark'
 
-const recipes = ref<RecipeSummary[]>([])
-const query = ref('')
-const loading = ref(false)
-const error = ref('')
-const selectedRecipeId = ref<number | null>(null)
-const pickerRecipe = ref<RecipeReference | null>(null)
-const showIngredientsModal = ref(false)
-const ingredients = ref<string[]>([])
-const activeProfile = ref(getActiveProfile())
 
-function openCollections(recipe: RecipeSummary) {
-    pickerRecipe.value = { id: recipe.id, title: recipe.title, image: recipe.image }
-}
+    const recipes = ref<RecipeSummary[]>([])
+    const query = ref('')
+    const loading = ref(false)
+    const error = ref('')
+    const selectedRecipeId = ref<number | null>(null)
+    const pickerRecipe = ref<RecipeReference | null>(null)
+    const showIngredientsModal = ref(false)
+    const ingredients = ref<string[]>([])
+    const activeProfile = ref(getActiveProfile())
 
-async function onIngredientsConfirm(selected: string[]) {
-    ingredients.value = selected
-    showIngredientsModal.value = false
-    loading.value = true
-    error.value = ''
-    try {
-        recipes.value = await searchRecipesByIngredients(selected)
-    } catch (e) {
-        error.value = e instanceof Error ? e.message : 'Erro desconhecido'
-        recipes.value = []
-    } finally {
-        loading.value = false
+    function openCollections(recipe: RecipeSummary) {
+        pickerRecipe.value = { id: recipe.id, title: recipe.title, image: recipe.image }
     }
-}
 
-async function loadRecipes() {
-    activeProfile.value = getActiveProfile()
-    loading.value = true
-    error.value = ''
-    try {
-        recipes.value = await searchRecipes(query.value)
-    } catch (e) {
-        error.value = e instanceof Error ? e.message : 'Erro desconhecido'
-        recipes.value = []
-    } finally {
-        loading.value = false
+    async function onIngredientsConfirm(selected: string[]) {
+        ingredients.value = selected
+        showIngredientsModal.value = false
+        loading.value = true
+        error.value = ''
+        try {
+            recipes.value = await searchRecipes(query.value, selected)
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : 'Erro desconhecido'
+            recipes.value = []
+        } finally {
+            loading.value = false
+        }
     }
-}
 
-onMounted(loadRecipes)
+    async function loadRecipes() {
+        activeProfile.value = getActiveProfile()
+        loading.value = true
+        error.value = ''
+        try {
+            const pantryNames = query.value.trim() ? [] : getPantryNames().map(i => i.name)
+            recipes.value = await searchRecipes(query.value, pantryNames)
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : 'Erro desconhecido'
+            recipes.value = []
+        } finally {
+            loading.value = false
+        }
+    }
+
+    onMounted(loadRecipes)
 </script>
 
 <template>
@@ -66,7 +68,8 @@ onMounted(loadRecipes)
         </header>
 
         <p v-if="activeProfile" class="profile-hint">
-            Sugestões adaptadas ao perfil de <strong>{{ activeProfile.name }}</strong> ({{ DIETS[activeProfile.diet] ?? activeProfile.diet }})
+            Sugestões adaptadas ao perfil de <strong>{{ activeProfile.name }}</strong> ({{ DIETS[activeProfile.diet] ??
+                activeProfile.diet }})
         </p>
 
         <form class="search-form" @submit.prevent="loadRecipes">
@@ -77,6 +80,8 @@ onMounted(loadRecipes)
         <button type="button" class="btn-submit" :disabled="loading" @click="showIngredientsModal = true">Select
             items</button>
 
+        <h2 class="section-title">Suggested recipes based on your pantry</h2>
+
         <p v-if="loading" class="status">A carregar receitas...</p>
         <p v-else-if="error" class="status error">{{ error }}</p>
         <p v-else-if="recipes.length === 0" class="status">Nenhuma receita encontrada.</p>
@@ -86,8 +91,7 @@ onMounted(loadRecipes)
                 @click="selectedRecipeId = recipe.id" @keydown.enter="selectedRecipeId = recipe.id">
                 <div class="card-media">
                     <img :src="recipe.image" :alt="recipe.title" loading="lazy" />
-                    <BookmarkButton class="card-bookmark" :recipe="recipe"
-                        @longpress="openCollections(recipe)" />
+                    <BookmarkButton class="card-bookmark" :recipe="recipe" @longpress="openCollections(recipe)" />
                 </div>
                 <h3>{{ recipe.title }}</h3>
             </article>
@@ -216,5 +220,14 @@ onMounted(loadRecipes)
     font-size: 1rem;
     margin: 0;
     padding: 12px;
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 24px 0 12px;
+    padding-left: 10px;
+    border-left: 4px solid #198754;
+    color: #1f2937;
 }
 </style>

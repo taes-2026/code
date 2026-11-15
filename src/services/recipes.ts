@@ -1,11 +1,14 @@
 
 import { getActiveProfile } from '@/services/profiles'
+import { findAll } from '@/services/items'
+import type { InventoryItem } from '@/types/item'
 
 export interface RecipeSummary {
   id: number
   title: string
   image: string
   imageType: string
+  extendedIngredients?: { name: string; original: string }[]
 }
 
 interface ComplexSearchResponse {
@@ -15,43 +18,29 @@ interface ComplexSearchResponse {
   totalResults: number
 }
 
-export async function searchRecipes(query = '', number = 12): Promise<RecipeSummary[]> {
-  const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
-  if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
+export function getPantryNames(max = 5): InventoryItem[] {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const banned = (getActiveProfile()?.restrictions ?? []).map(r => r.trim().toLowerCase()).filter(Boolean)
 
-  const params = new URLSearchParams({ apiKey, number: String(number) })
-  if (query.trim()) params.set('query', query.trim())
-
-  const profile = getActiveProfile()
-  if (profile) {
-    if (profile.diet && profile.diet !== 'omnivore') {
-      params.set('diet', profile.diet)
-    }
-
-    if (profile.intolerances.length > 0) {
-      params.set('intolerances', profile.intolerances.join(','))
-    }
-    
-    if (profile.restrictions.length > 0) {
-      params.set('excludeIngredients', profile.restrictions.join(','))
-    }
-
-  }
-
-  const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`)
-  if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)
-
-  const data: ComplexSearchResponse = await response.json()
-  return data.results
+  return findAll()
+    .filter(i => i.expirationDate >= today)
+    .filter(i => !banned.some(word => i.name.toLowerCase().includes(word)))
+    .sort((a, b) => a.expirationDate.localeCompare(b.expirationDate))
+    .slice(0, max)
 }
 
-export async function searchRecipesByIngredients(ingredients: string[], number = 12): Promise<RecipeSummary[]> {
-  if (ingredients.length === 0) return []
-
+export async function searchRecipes(query = '', ingredients: string[] = [], number = 12): Promise<RecipeSummary[]> {
   const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
   if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
 
-  const params = new URLSearchParams({ apiKey, ingredients: ingredients.join(','), number: String(number), ignorePantry: 'true' })
+  const params = new URLSearchParams({number: String(number) })
+  if (query.trim()) params.set('query', query.trim())
+  params.set('addRecipeInformation', 'true') 
+
+  if (ingredients.length > 0) {
+    params.set('includeIngredients', ingredients.join(','))
+    params.set('sort', 'max-used-ingredients')
+  }
 
   const profile = getActiveProfile()
   if (profile) {
@@ -66,14 +55,25 @@ export async function searchRecipesByIngredients(ingredients: string[], number =
     if (profile.restrictions.length > 0) {
       params.set('excludeIngredients', profile.restrictions.join(','))
     }
-
   }
 
-  const response = await fetch(`https://api.spoonacular.com/recipes/findByIngredients?${params}`)
+  const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`, {
+    headers: { 'x-api-key': apiKey },
+  })
   if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)
 
-  const data: RecipeSummary[] = await response.json()
-  return data
+
+  const data: ComplexSearchResponse = await response.json()
+  const bannedItems = (profile?.restrictions ?? []).map(r => r.trim().toLowerCase()).filter(Boolean)
+
+  return data.results.filter(r => {
+  const text = [r.title, ...(r.extendedIngredients ?? []).map(i => i.original)]
+    .join(' ')
+    .toLowerCase()
+
+  return !bannedItems.some(word => text.includes(word))
+  })
+
 }
 
 export interface RecipeIngredient {
@@ -123,8 +123,10 @@ export async function getRecipeInformation(id: number): Promise<RecipeDetails> {
   const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
   if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
 
-  const params = new URLSearchParams({ apiKey, includeNutrition: 'false' })
-  const response = await fetch(`https://api.spoonacular.com/recipes/${id}/information?${params}`)
+  const params = new URLSearchParams({includeNutrition: 'false' })
+  const response = await fetch(`https://api.spoonacular.com/recipes/${id}/information?${params}`,{
+    headers: { 'x-api-key': apiKey },
+  })
   if (!response.ok) throw new Error(`Erro ao obter detalhes da receita (${response.status})`)
 
   return response.json()
