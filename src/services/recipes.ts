@@ -37,7 +37,6 @@ export async function searchRecipes(query = '', number = 12): Promise<RecipeSumm
     }
 
   }
-  console.log(`https://api.spoonacular.com/recipes/complexSearch?${params}`)
 
   const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`)
   if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)
