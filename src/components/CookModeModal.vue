@@ -4,6 +4,7 @@ import { buildCookingSteps, type TimedAction } from '@/domain/cooking'
 import { formatClock } from '@/domain/timers'
 import { useTimers } from '@/composables/useTimers'
 import { useBookmarks } from '@/stores/bookmarks'
+import MealSummary from '@/components/MealSummary.vue'
 import type { RecipeDetails } from '@/services/recipes'
 import type { RecipeReference } from '@/types/bookmark'
 
@@ -140,6 +141,10 @@ onBeforeUnmount(() => {
         <span class="complete-check" aria-hidden="true">✓</span>
         <h2>Refeição concluída!</h2>
         <p class="complete-text">Guarda esta receita para a voltares a cozinhar mais tarde.</p>
+
+        <div class="summary-wrap">
+          <MealSummary :recipe="recipe" />
+        </div>
 
         <p v-if="saved" class="saved-note" role="status">
           Receita guardada nas tuas receitas.
@@ -651,10 +656,16 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 14px;
   padding: 24px 8px;
+  overflow-y: auto;
   text-align: center;
+}
+
+.summary-wrap {
+  width: 100%;
+  max-width: 560px;
 }
 
 .complete-check {

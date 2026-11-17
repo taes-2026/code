@@ -90,6 +90,17 @@ export interface RecipeStep {
   step: string
 }
 
+export interface NutrientInfo {
+  name: string
+  amount: number
+  unit: string
+  percentOfDailyNeeds?: number
+}
+
+export interface RecipeNutrition {
+  nutrients: NutrientInfo[]
+}
+
 export interface RecipeDetails {
   id: number
   title: string
@@ -117,13 +128,14 @@ export interface RecipeDetails {
   veryPopular: boolean
   extendedIngredients: RecipeIngredient[]
   analyzedInstructions: { name: string; steps: RecipeStep[] }[]
+  nutrition?: RecipeNutrition
 }
 
 export async function getRecipeInformation(id: number): Promise<RecipeDetails> {
   const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
   if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
 
-  const params = new URLSearchParams({includeNutrition: 'false' })
+  const params = new URLSearchParams({ includeNutrition: 'true' })
   const response = await fetch(`https://api.spoonacular.com/recipes/${id}/information?${params}`,{
     headers: { 'x-api-key': apiKey },
   })
