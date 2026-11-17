@@ -4,6 +4,7 @@ import { getRecipeInformation, type RecipeDetails } from '@/services/recipes'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import CollectionsModal from '@/components/CollectionsModal.vue'
 import CookModeModal from '@/components/CookModeModal.vue'
+import MealSummary from '@/components/MealSummary.vue'
 import { useBookmarks } from '@/stores/bookmarks'
 import type { RecipeReference } from '@/types/bookmark'
 
@@ -15,6 +16,7 @@ const loading = ref(false)
 const error = ref('')
 const showCollections = ref(false)
 const showCookMode = ref(false)
+const showMealSummary = ref(false)
 
 const { isBookmarked } = useBookmarks()
 
@@ -79,7 +81,10 @@ const pricePerServing = computed(() =>
 )
 
 function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && !showCollections.value && !showCookMode.value) emit('close')
+    if (e.key !== 'Escape') return
+
+    if (showMealSummary.value) showMealSummary.value = false
+    else if (!showCollections.value && !showCookMode.value) emit('close')
 }
 
 onMounted(() => {
@@ -116,10 +121,15 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <button v-if="steps.length || plainInstructions" type="button" class="cook-mode-btn"
-                        @click="showCookMode = true">
-                        Começar a cozinhar
-                    </button>
+                    <div class="detail-actions">
+                        <button v-if="steps.length || plainInstructions" type="button" class="cook-mode-btn"
+                            @click="showCookMode = true">
+                            Começar a cozinhar
+                        </button>
+                        <button type="button" class="summary-btn" @click="showMealSummary = true">
+                            Ver resumo da refeição
+                        </button>
+                    </div>
 
                     <ul class="facts">
                         <li><strong>{{ recipe.readyInMinutes }} min</strong><span>Total time</span></li>
@@ -179,6 +189,15 @@ onBeforeUnmount(() => {
         @close="showCollections = false" />
 
     <CookModeModal v-if="showCookMode && recipe" :recipe="recipe" @close="showCookMode = false" />
+
+    <div v-if="showMealSummary && recipe" class="overlay summary-overlay" @click.self="showMealSummary = false">
+        <div class="modal summary-modal" role="dialog" aria-modal="true" aria-label="Resumo da refeição">
+            <button class="close-btn" aria-label="Close" @click="showMealSummary = false">×</button>
+            <div class="content">
+                <MealSummary :recipe="recipe" />
+            </div>
+        </div>
+    </div>
 </template>
 
 <style scoped>
@@ -269,9 +288,15 @@ onBeforeUnmount(() => {
     cursor: pointer;
 }
 
+.detail-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
 .cook-mode-btn {
     width: 100%;
-    margin-bottom: 16px;
     padding: 12px 16px;
     border-radius: 10px;
     background: #198754;
@@ -283,6 +308,31 @@ onBeforeUnmount(() => {
 
 .cook-mode-btn:hover {
     background: #157347;
+}
+
+.summary-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 1px solid #198754;
+    border-radius: 10px;
+    background: transparent;
+    color: #198754;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.summary-btn:hover {
+    background: #eaf5ef;
+}
+
+.summary-overlay {
+    z-index: 1100;
+}
+
+.summary-modal {
+    max-width: 640px;
 }
 
 .content h3 {
