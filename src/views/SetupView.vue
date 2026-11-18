@@ -2,29 +2,35 @@
 import '@/assets/setup.css'
 
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ALLERGIES, DIETS, RESTRICTIONS } from '@/domain/diet'
-import { find, save } from '@/services/profiles'
+import { useRoute, useRouter } from 'vue-router'
+import { INTOLERANCES, DIETS, RESTRICTIONS } from '@/domain/diet'
+import { create, findAll, find, hasProfile, save } from '@/services/profiles'
 import type { ProfileForm } from '@/types/profile'
 
 const router = useRouter()
-const existing = find()
+const route = useRoute()
+
+const isNew = route.query.new === 'true' || !hasProfile()
+const profileId = typeof route.query.id === 'string' ? route.query.id : undefined
+const existing = !isNew
+  ? (profileId ? findAll().find((p) => p.id === profileId) ?? find() : find())
+  : null
 const isEditing = existing !== null
 
 const form = reactive<ProfileForm>(
   existing
     ? {
-        name: existing.name,
-        diet: existing.diet,
-        allergies: [...existing.allergies],
-        restrictions: [...existing.restrictions],
-      }
+      name: existing.name,
+      diet: existing.diet,
+      intolerances: [...existing.intolerances],
+      restrictions: [...existing.restrictions],
+    }
     : {
-        name: '',
-        diet: 'omnivore',
-        allergies: [],
-        restrictions: [],
-      },
+      name: '',
+      diet: 'omnivore',
+      intolerances: [],
+      restrictions: [],
+    },
 )
 const error = ref('')
 const loading = ref(false)
@@ -41,7 +47,11 @@ async function submit() {
   loading.value = true
 
   try {
-    save({ ...form, name: form.name.trim() })
+    if (isNew) {
+      create({ ...form, name: form.name.trim() }, true)
+    } else {
+      save({ ...form, name: form.name.trim() }, existing?.id)
+    }
     await router.push({ name: 'dashboard' })
   } catch {
     error.value = 'Não foi possível guardar o perfil.'
@@ -53,7 +63,7 @@ async function submit() {
 
 <template>
   <main class="auth setup">
-    <h1>{{ isEditing ? 'Editar perfil' : 'Configurar perfil' }}</h1>
+    <h1>{{ isEditing ? 'Editar perfil' : 'Novo perfil' }}</h1>
 
     <form @submit.prevent="submit">
       <label>
@@ -71,15 +81,15 @@ async function submit() {
       </label>
 
       <fieldset>
-        <legend>Alergias</legend>
-        <label v-for="(label, id) in ALLERGIES" :key="id" class="check">
-          <input v-model="form.allergies" type="checkbox" :value="id" />
+        <legend>Intolerâncias</legend>
+        <label v-for="(label, id) in INTOLERANCES" :key="id" class="check">
+          <input v-model="form.intolerances" type="checkbox" :value="id" />
           {{ label }}
         </label>
       </fieldset>
 
       <fieldset>
-        <legend>Restricoes</legend>
+        <legend>Restrições</legend>
         <label v-for="(label, id) in RESTRICTIONS" :key="id" class="check">
           <input v-model="form.restrictions" type="checkbox" :value="id" />
           {{ label }}
@@ -91,6 +101,10 @@ async function submit() {
       <button type="submit" :disabled="loading">
         {{ loading ? '...' : isEditing ? 'Guardar alterações' : 'Começar' }}
       </button>
+
+      <router-link v-if="hasProfile()" to="/dashboard" class="switch">
+        Cancelar e voltar à dashboard
+      </router-link>
     </form>
   </main>
 </template>

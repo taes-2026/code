@@ -1,4 +1,4 @@
-export const CATEGORIES = {
+export const CATEGORIES: Record<string, string> = {
   fruits: 'Frutas',
   vegetables: 'Legumes',
   meat: 'Carnes',
@@ -8,7 +8,7 @@ export const CATEGORIES = {
   drinks: 'Bebidas',
   frozen: 'Congelados',
   other: 'Outros',
-} as const
+}
 
 export const UNITS = {
   unit: 'Unidade(s)',
@@ -19,5 +19,5 @@ export const UNITS = {
   pack: 'Embalagem',
 } as const
 
-export type ItemCategory = keyof typeof CATEGORIES
+export type ItemCategory = keyof typeof CATEGORIES | (string & {})
 export type ItemUnit = keyof typeof UNITS

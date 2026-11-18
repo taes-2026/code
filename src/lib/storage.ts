@@ -1,3 +1,4 @@
+import type { RecipeBookmark, RecipeCollection } from '@/types/bookmark'
 import type { InventoryItem } from '@/types/item'
 import type { Profile } from '@/types/profile'
 
@@ -5,7 +6,12 @@ const PREFIX = 'smartpantry'
 
 type StorageData = {
   profile: Profile | null
+  profiles: Profile[]
+  activeProfileId: string | null
   items: InventoryItem[]
+  categories: Record<string, string>
+  bookmarks: RecipeBookmark[]
+  collections: RecipeCollection[]
 }
 
 export type StorageKey = keyof StorageData
@@ -32,16 +38,80 @@ function isInventoryItem(value: unknown): value is InventoryItem {
   )
 }
 
+function isProfile(value: unknown): value is Profile {
+  if (typeof value !== 'object' || value === null) return false
+
+  const profile = value as Record<string, unknown>
+
+  return (
+    typeof profile.name === 'string' &&
+    typeof profile.diet === 'string' &&
+    Array.isArray(profile.intolerances) &&
+    Array.isArray(profile.restrictions)
+  )
+}
+
+function isRecipeBookmark(value: unknown): value is RecipeBookmark {
+  if (typeof value !== 'object' || value === null) return false
+
+  const bookmark = value as Record<string, unknown>
+
+  return (
+    typeof bookmark.id === 'number' &&
+    typeof bookmark.title === 'string' &&
+    typeof bookmark.image === 'string' &&
+    Array.isArray(bookmark.collectionIds) &&
+    bookmark.collectionIds.every((id) => typeof id === 'string') &&
+    typeof bookmark.createdAt === 'string'
+  )
+}
+
+function isRecipeCollection(value: unknown): value is RecipeCollection {
+  if (typeof value !== 'object' || value === null) return false
+
+  const collection = value as Record<string, unknown>
+
+  return (
+    typeof collection.id === 'string' &&
+    typeof collection.name === 'string' &&
+    typeof collection.createdAt === 'string'
+  )
+}
+
 const entries: { [K in StorageKey]: Entry<StorageData[K]> } = {
   profile: {
     default: () => null,
-    check: (value): value is Profile | null =>
-      value === null || (typeof value === 'object' && typeof (value as Profile).name === 'string'),
+    check: (value): value is Profile | null => value === null || isProfile(value),
+  },
+  profiles: {
+    default: () => [],
+    check: (value): value is Profile[] =>
+      Array.isArray(value) && value.every(isProfile),
+  },
+  activeProfileId: {
+    default: () => null,
+    check: (value): value is string | null =>
+      value === null || typeof value === 'string',
   },
   items: {
     default: () => [],
     check: (value): value is InventoryItem[] =>
       Array.isArray(value) && value.every(isInventoryItem),
+  },
+  categories: {
+    default: () => ({}),
+    check: (value): value is Record<string, string> =>
+      typeof value === 'object' && value !== null && !Array.isArray(value),
+  },
+  bookmarks: {
+    default: () => [],
+    check: (value): value is RecipeBookmark[] =>
+      Array.isArray(value) && value.every(isRecipeBookmark),
+  },
+  collections: {
+    default: () => [],
+    check: (value): value is RecipeCollection[] =>
+      Array.isArray(value) && value.every(isRecipeCollection),
   },
 }
 

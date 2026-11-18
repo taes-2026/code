@@ -27,8 +27,6 @@ export function create(form: ItemForm): InventoryItem {
 
   return item
 }
-
-/** Notifica quando a despensa é alterada noutro separador/janela. */
 export function subscribe(listener: (items: InventoryItem[]) => void): () => void {
   return subscribeStored('items', listener)
 }
