@@ -5,6 +5,7 @@ import { formatClock } from '@/domain/timers'
 import { useTimers } from '@/composables/useTimers'
 import { useBookmarks } from '@/stores/bookmarks'
 import MealSummary from '@/components/MealSummary.vue'
+import TimerAlert from '@/components/TimerAlert.vue'
 import type { RecipeDetails } from '@/services/recipes'
 import type { RecipeReference } from '@/types/bookmark'
 
@@ -214,10 +215,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div v-if="finishedTimers.length" class="timer-banner" role="alert">
-          <span>Tempo terminado: {{ finishedTimers.map((timer) => timer.label).join(', ') }}</span>
-          <button type="button" @click="dismissFinished">Parar</button>
-        </div>
+        <TimerAlert :timers="finishedTimers" @dismiss="dismissFinished" @restart="toggleTimer" />
 
         <div v-if="timers.length" class="timer-panel" role="group" aria-label="Temporizadores ativos">
           <div
@@ -477,33 +475,6 @@ onBeforeUnmount(() => {
 
 .timer-preset:hover {
   background: #d1e7dd;
-}
-
-.timer-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: #dc3545;
-  color: #fff;
-  font-weight: 600;
-  animation: timer-pulse 1.1s infinite;
-}
-
-.timer-banner button {
-  width: auto;
-  min-height: 38px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 8px;
-  background: #fff;
-  color: #b02a37;
-  font-weight: 700;
-  cursor: pointer;
 }
 
 .timer-panel {
