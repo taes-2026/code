@@ -8,6 +8,8 @@ export interface RecipeSummary {
   title: string
   image: string
   imageType: string
+  usedIngredients?: { name: string; original: string }[]
+  missedIngredients?: { name: string; original: string }[]
   extendedIngredients?: { name: string; original: string }[]
 }
 
@@ -29,15 +31,17 @@ export function getPantryNames(max = 5): InventoryItem[] {
     .slice(0, max)
 }
 
-export async function searchRecipes(query = '', ingredients: string[] = [], number = 12): Promise<RecipeSummary[]> {
+export async function searchRecipes(query = '', ingredients: string[] = [], number = 20): Promise<RecipeSummary[]> {
   const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
   if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
 
-  const params = new URLSearchParams({number: String(number) })
+  const params = new URLSearchParams({ number: String(number) })
   if (query.trim()) params.set('query', query.trim())
-  params.set('addRecipeInformation', 'true') 
+  params.set('addRecipeInformation', 'true')
+  params.set('fillIngredients', 'true')
+  
 
-  if (ingredients.length > 0) {
+  if (ingredients.length > 0 && !query.trim()) {
     params.set('includeIngredients', ingredients.join(','))
     params.set('sort', 'max-used-ingredients')
   }
@@ -51,7 +55,6 @@ export async function searchRecipes(query = '', ingredients: string[] = [], numb
     if (profile.intolerances.length > 0) {
       params.set('intolerances', profile.intolerances.join(','))
     }
-    
     if (profile.restrictions.length > 0) {
       params.set('excludeIngredients', profile.restrictions.join(','))
     }
@@ -60,20 +63,38 @@ export async function searchRecipes(query = '', ingredients: string[] = [], numb
   const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`, {
     headers: { 'x-api-key': apiKey },
   })
-  if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)
 
+  if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)
 
   const data: ComplexSearchResponse = await response.json()
   const bannedItems = (profile?.restrictions ?? []).map(r => r.trim().toLowerCase()).filter(Boolean)
 
-  return data.results.filter(r => {
-  const text = [r.title, ...(r.extendedIngredients ?? []).map(i => i.original)]
-    .join(' ')
-    .toLowerCase()
+  const filteredRecipes = data.results.filter(r => {
+    const text = [r.title, ...(r.usedIngredients ?? []).map(i => i.original)]
+      .join(' ')
+      .toLowerCase()
 
-  return !bannedItems.some(word => text.includes(word))
+    return !bannedItems.some(word => text.includes(word))
   })
 
+  const pantryItems = getPantryNames()
+
+  function getRecipeScore(recipe: RecipeSummary) {
+  const recipeIngredients = (recipe.extendedIngredients ?? [])
+    .map(i => i.name.toLowerCase())
+
+  return pantryItems.reduce((total, item, index) => {
+    const name = item.name.toLowerCase()
+
+    const found = recipeIngredients.some(ingredient =>
+      ingredient.includes(name) || name.includes(ingredient)
+    )
+
+    return total + (found ? pantryItems.length - index : 0)
+  }, 0)
+}
+
+  return filteredRecipes.sort((a, b) => getRecipeScore(b) - getRecipeScore(a))
 }
 
 export interface RecipeIngredient {
