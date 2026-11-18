@@ -44,7 +44,7 @@
         loading.value = true
         error.value = ''
         try {
-            const pantryNames = query.value.trim() ? [] : getPantryNames().map(i => i.name)
+            const pantryNames = getPantryNames().map(i => i.name)
             recipes.value = await searchRecipes(query.value, pantryNames)
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Erro desconhecido'
@@ -231,3 +231,4 @@
     color: #1f2937;
 }
 </style>
+
