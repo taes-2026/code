@@ -24,28 +24,18 @@
         pickerRecipe.value = { id: recipe.id, title: recipe.title, image: recipe.image }
     }
 
-    async function onIngredientsConfirm(selected: string[]) {
-        ingredients.value = selected
-        showIngredientsModal.value = false
-        loading.value = true
-        error.value = ''
-        try {
-            recipes.value = await searchRecipes(query.value, selected)
-        } catch (e) {
-            error.value = e instanceof Error ? e.message : 'Erro desconhecido'
-            recipes.value = []
-        } finally {
-            loading.value = false
-        }
-    }
-
     async function loadRecipes() {
         activeProfile.value = getActiveProfile()
         loading.value = true
         error.value = ''
         try {
-            const pantryNames = getPantryNames().map(i => i.name)
-            recipes.value = await searchRecipes(query.value, pantryNames)
+            const hasQuery = query.value.trim().length > 0
+            const selected = ingredients.value
+            const expiring = getPantryNames().map(i => i.name)
+
+            const base = selected.length > 0 ? selected : hasQuery ? [] : expiring
+
+            recipes.value = await searchRecipes(query.value, base, 20, { prioritize: base })
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Erro desconhecido'
             recipes.value = []
@@ -54,7 +44,24 @@
         }
     }
 
+    async function onIngredientsConfirm(selected: string[]) {
+        ingredients.value = selected
+        showIngredientsModal.value = false
+        await loadRecipes()
+    }
+
     onMounted(loadRecipes)
+
+    async function removeIngredient(name: string) {
+        ingredients.value = ingredients.value.filter(i => i !== name)
+        await loadRecipes()
+    }
+
+    async function clearIngredients() {
+        ingredients.value = []
+        await loadRecipes()
+    }
+
 </script>
 
 <template>
@@ -79,6 +86,16 @@
 
         <button type="button" class="btn-submit" :disabled="loading" @click="showIngredientsModal = true">Select
             items</button>
+
+        <div v-if="ingredients.length > 0" class="selected-chips">
+            <button v-for="name in ingredients" :key="name" type="button" class="chip" :disabled="loading"
+                @click="removeIngredient(name)">
+                {{ name }} ✕
+            </button>
+            <button type="button" class="chip chip-clear" :disabled="loading" @click="clearIngredients">
+                Limpar tudo
+            </button>
+        </div>
 
         <h2 class="section-title">Suggested recipes based on your pantry</h2>
 
@@ -229,6 +246,46 @@
     padding-left: 10px;
     border-left: 4px solid #198754;
     color: #1f2937;
+}
+
+.selected-chips {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-top: 12px;
+}
+
+.selected-chips .chip {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 0;
+    height: auto;
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid #198754;
+    border-radius: 999px;
+    background: #f0fdf4;
+    color: #15803d;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    cursor: pointer;
+}
+
+.selected-chips .chip:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.selected-chips .chip-clear {
+    background: #fff;
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.chip:disabled {
+    opacity: 0.6;
+    cursor: default;
 }
 </style>
 
