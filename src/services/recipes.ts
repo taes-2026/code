@@ -1,6 +1,7 @@
 
 import { getActiveProfile } from '@/services/profiles'
 import { findAll } from '@/services/items'
+import { find, save } from '@/lib/storage'
 import type { InventoryItem } from '@/types/item'
 
 export interface RecipeSummary {
@@ -61,13 +62,25 @@ export async function searchRecipes( query = '', ingredients: string[] = [], num
     }
   }
 
-  const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`, {
-    headers: { 'x-api-key': apiKey },
-  })
+  let data: ComplexSearchResponse
 
-  if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)
+  try {
+    const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`, {
+      headers: { 'x-api-key': apiKey },
+    })
 
-  const data: ComplexSearchResponse = await response.json()
+    if (!response.ok) throw new Error(`Erro ao obter receitas (${response.status})`)
+
+    data = await response.json()
+  } catch (error) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error instanceof TypeError
+    ) {
+      throw new Error('Sem ligação à internet. Não é possível procurar novas receitas offline.')
+    }
+    throw error
+  }
   const bannedItems = (profile?.restrictions ?? []).map(r => r.trim().toLowerCase()).filter(Boolean)
 
   const filteredRecipes = data.results.filter(r => {
@@ -150,15 +163,54 @@ export interface RecipeDetails {
   nutrition?: RecipeNutrition
 }
 
+export function getCachedRecipe(id: number): RecipeDetails | null {
+  return find('cachedRecipes')[String(id)] ?? null
+}
+
+export function cacheRecipe(recipe: RecipeDetails): void {
+  const cache = find('cachedRecipes')
+
+  try {
+    save('cachedRecipes', { ...cache, [String(recipe.id)]: recipe })
+  } catch (error) {
+    console.error('[recipes] não foi possível guardar a receita em cache', error)
+  }
+}
+
 export async function getRecipeInformation(id: number): Promise<RecipeDetails> {
+  const cached = getCachedRecipe(id)
   const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
-  if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
+
+  if (!apiKey) {
+    if (cached) return cached
+    throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
+  }
 
   const params = new URLSearchParams({ includeNutrition: 'true' })
-  const response = await fetch(`https://api.spoonacular.com/recipes/${id}/information?${params}`,{
-    headers: { 'x-api-key': apiKey },
-  })
-  if (!response.ok) throw new Error(`Erro ao obter detalhes da receita (${response.status})`)
 
-  return response.json()
+  try {
+    const response = await fetch(`https://api.spoonacular.com/recipes/${id}/information?${params}`, {
+      headers: { 'x-api-key': apiKey },
+    })
+
+    if (!response.ok) {
+      if (cached) return cached
+      throw new Error(`Erro ao obter detalhes da receita (${response.status})`)
+    }
+
+    const recipe: RecipeDetails = await response.json()
+
+    cacheRecipe(recipe)
+
+    return recipe
+  } catch (error) {
+    if (cached) return cached
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error instanceof TypeError
+    ) {
+      throw new Error('Sem ligação à internet e sem versão guardada desta receita.')
+    }
+    throw error
+  }
 }
