@@ -17,6 +17,7 @@ const error = ref('')
 const showCollections = ref(false)
 const showCookMode = ref(false)
 const showMealSummary = ref(false)
+const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 
 const { isBookmarked } = useBookmarks()
 
@@ -87,12 +88,20 @@ function onKeydown(e: KeyboardEvent) {
     else if (!showCollections.value && !showCookMode.value) emit('close')
 }
 
+function updateOnlineStatus() {
+    isOffline.value = !navigator.onLine
+}
+
 onMounted(() => {
     document.addEventListener('keydown', onKeydown)
+    window.addEventListener('online', updateOnlineStatus)
+    window.addEventListener('offline', updateOnlineStatus)
     document.body.style.overflow = 'hidden'
 })
 onBeforeUnmount(() => {
     document.removeEventListener('keydown', onKeydown)
+    window.removeEventListener('online', updateOnlineStatus)
+    window.removeEventListener('offline', updateOnlineStatus)
     document.body.style.overflow = ''
 })
 </script>
@@ -109,6 +118,10 @@ onBeforeUnmount(() => {
                 <img v-if="recipe.image" :src="recipe.image" :alt="recipe.title" class="hero" />
 
                 <div class="content">
+                    <p v-if="isOffline" class="offline-note" role="status">
+                        Sem ligação à internet. A mostrar a versão guardada desta receita.
+                    </p>
+
                     <div class="title-row">
                         <h2>{{ recipe.title }}</h2>
                         <div class="title-actions">
@@ -363,6 +376,16 @@ onBeforeUnmount(() => {
 .facts span {
     font-size: 0.8rem;
     color: #666;
+}
+
+.offline-note {
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 0.9rem;
 }
 
 .tags {

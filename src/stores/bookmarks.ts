@@ -8,6 +8,7 @@ import {
   removeBookmark,
   setBookmarkCollections,
 } from '@/services/bookmarks'
+import { getRecipeInformation } from '@/services/recipes'
 import type { RecipeBookmark, RecipeCollection, RecipeReference } from '@/types/bookmark'
 
 const state = reactive<{
@@ -31,8 +32,12 @@ export function useBookmarks() {
   }
 
   function toggle(reference: RecipeReference): void {
-    if (isBookmarked(reference.id)) removeBookmark(reference.id)
-    else addBookmark(reference)
+    if (isBookmarked(reference.id)) {
+      removeBookmark(reference.id)
+    } else {
+      addBookmark(reference)
+      void getRecipeInformation(reference.id).catch(() => {})
+    }
 
     refresh()
   }
