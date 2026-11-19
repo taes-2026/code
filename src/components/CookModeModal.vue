@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { buildCookingSteps, type TimedAction } from '@/domain/cooking'
+import { buildPantryIndex, hasIngredient } from '@/domain/pantry'
 import { formatClock } from '@/domain/timers'
 import { useTimers } from '@/composables/useTimers'
 import { useBookmarks } from '@/stores/bookmarks'
+import { findAll as findAllItems, subscribe as subscribeItems } from '@/services/items'
 import MealSummary from '@/components/MealSummary.vue'
 import TimerAlert from '@/components/TimerAlert.vue'
-import type { RecipeDetails } from '@/services/recipes'
+import type { RecipeDetails, RecipeIngredient } from '@/services/recipes'
 import type { RecipeReference } from '@/types/bookmark'
+import type { InventoryItem } from '@/types/item'
 
 const props = defineProps<{ recipe: RecipeDetails }>()
 const emit = defineEmits<{ close: [] }>()
@@ -19,6 +22,13 @@ const completed = ref(false)
 const { timers, finishedTimers, addTimer, toggleTimer, resetTimer, dismissTimer, dismissFinished } =
   useTimers()
 const { isBookmarked, toggle } = useBookmarks()
+
+const pantry = ref<InventoryItem[]>(findAllItems())
+const pantryIndex = computed(() => buildPantryIndex(pantry.value))
+
+function isMissing(ingredient: RecipeIngredient): boolean {
+  return !hasIngredient(pantryIndex.value, ingredient.name || ingredient.original)
+}
 
 const reference = computed<RecipeReference>(() => ({
   id: props.recipe.id,
@@ -90,16 +100,21 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 let previousOverflow = ''
+let unsubscribePantry: (() => void) | undefined
 
 onMounted(() => {
   previousOverflow = document.body.style.overflow
   document.body.style.overflow = 'hidden'
   document.addEventListener('keydown', onKeydown)
+  unsubscribePantry = subscribeItems((items) => {
+    pantry.value = items
+  })
 })
 
 onBeforeUnmount(() => {
   document.body.style.overflow = previousOverflow
   document.removeEventListener('keydown', onKeydown)
+  unsubscribePantry?.()
 })
 </script>
 
@@ -189,6 +204,14 @@ onBeforeUnmount(() => {
                         v-for="(ingredient, ingredientIndex) in step.ingredients"
                         :key="`${ingredient.id}-${ingredientIndex}`"
                       >
+                        <span
+                          v-if="isMissing(ingredient)"
+                          class="missing-ingredient"
+                          role="img"
+                          aria-label="Não tens este ingrediente na despensa"
+                          title="Não tens este ingrediente na despensa"
+                          >!</span
+                        >
                         {{ ingredient.original }}
                       </li>
                     </ul>
@@ -424,6 +447,14 @@ onBeforeUnmount(() => {
   margin: 0;
   padding-left: 20px;
   line-height: 1.7;
+}
+
+.missing-ingredient {
+  display: inline-block;
+  margin-right: 6px;
+  color: #dc3545;
+  font-weight: 800;
+  cursor: help;
 }
 
 .muted {
