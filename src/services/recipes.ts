@@ -31,19 +31,21 @@ export function getPantryNames(max = 5): InventoryItem[] {
     .slice(0, max)
 }
 
-export async function searchRecipes(query = '', ingredients: string[] = [], number = 20): Promise<RecipeSummary[]> {
+export async function searchRecipes( query = '', ingredients: string[] = [], number = 20, options: { prioritize?: string[] } = {},
+): Promise<RecipeSummary[]> {
   const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
   if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
 
+  const hasQuery = query.trim().length > 0
+
   const params = new URLSearchParams({ number: String(number) })
-  if (query.trim()) params.set('query', query.trim())
+  if (hasQuery) params.set('query', query.trim())
   params.set('addRecipeInformation', 'true')
   params.set('fillIngredients', 'true')
-  
 
-  if (ingredients.length > 0 && !query.trim()) {
+  if (ingredients.length > 0) {
     params.set('includeIngredients', ingredients.join(','))
-    params.set('sort', 'max-used-ingredients')
+    if (!hasQuery) params.set('sort', 'max-used-ingredients')
   }
 
   const profile = getActiveProfile()
@@ -51,7 +53,6 @@ export async function searchRecipes(query = '', ingredients: string[] = [], numb
     if (profile.diet && profile.diet !== 'omnivore') {
       params.set('diet', profile.diet)
     }
-
     if (profile.intolerances.length > 0) {
       params.set('intolerances', profile.intolerances.join(','))
     }
@@ -77,22 +78,19 @@ export async function searchRecipes(query = '', ingredients: string[] = [], numb
     return !bannedItems.some(word => text.includes(word))
   })
 
-  const pantryItems = getPantryNames()
+  const priority = (options.prioritize ?? []).map(n => n.toLowerCase())
+  if (priority.length === 0) return filteredRecipes
 
   function getRecipeScore(recipe: RecipeSummary) {
-  const recipeIngredients = (recipe.extendedIngredients ?? [])
-    .map(i => i.name.toLowerCase())
+    const recipeIngredients = (recipe.extendedIngredients ?? []).map(i => i.name.toLowerCase())
 
-  return pantryItems.reduce((total, item, index) => {
-    const name = item.name.toLowerCase()
-
-    const found = recipeIngredients.some(ingredient =>
-      ingredient.includes(name) || name.includes(ingredient)
-    )
-
-    return total + (found ? pantryItems.length - index : 0)
-  }, 0)
-}
+    return priority.reduce((total, name, index) => {
+      const found = recipeIngredients.some(
+        ingredient => ingredient.includes(name) || name.includes(ingredient),
+      )
+      return total + (found ? priority.length - index : 0)
+    }, 0)
+  }
 
   return filteredRecipes.sort((a, b) => getRecipeScore(b) - getRecipeScore(a))
 }
