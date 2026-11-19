@@ -73,7 +73,10 @@ export async function searchRecipes( query = '', ingredients: string[] = [], num
 
     data = await response.json()
   } catch (error) {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error instanceof TypeError
+    ) {
       throw new Error('Sem ligação à internet. Não é possível procurar novas receitas offline.')
     }
     throw error
@@ -202,7 +205,10 @@ export async function getRecipeInformation(id: number): Promise<RecipeDetails> {
     return recipe
   } catch (error) {
     if (cached) return cached
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error instanceof TypeError
+    ) {
       throw new Error('Sem ligação à internet e sem versão guardada desta receita.')
     }
     throw error
