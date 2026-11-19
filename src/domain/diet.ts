@@ -3,7 +3,6 @@ export const DIETS = {
   vegetarian: 'Vegetariano',
   vegan: 'Vegano',
   pescetarian: 'Pescetariano',
-  
 } as const
 
 export const INTOLERANCES = {

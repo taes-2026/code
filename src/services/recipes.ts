@@ -1,8 +1,12 @@
-
 import { getActiveProfile } from '@/services/profiles'
 import { findAll } from '@/services/items'
 import { find, save } from '@/lib/storage'
 import type { InventoryItem } from '@/types/item'
+import {
+  enrichRecipeWithOverlap,
+  prioritizeRecipes,
+  calculateRecipeOverlap,
+} from '@/domain/overlap'
 
 export interface RecipeSummary {
   id: number
@@ -12,6 +16,12 @@ export interface RecipeSummary {
   usedIngredients?: { name: string; original: string }[]
   missedIngredients?: { name: string; original: string }[]
   extendedIngredients?: { name: string; original: string }[]
+  overlapPercentage?: number
+  totalIngredients?: number
+  usedIngredientCount?: number
+  missedIngredientCount?: number
+  usesExpiring?: boolean
+  expiringIngredients?: string[]
 }
 
 interface ComplexSearchResponse {
@@ -23,16 +33,20 @@ interface ComplexSearchResponse {
 
 export function getPantryNames(max = 5): InventoryItem[] {
   const today = new Date().toLocaleDateString('sv-SE')
-  const banned = (getActiveProfile()?.restrictions ?? []).map(r => r.trim().toLowerCase()).filter(Boolean)
+  const banned = (getActiveProfile()?.restrictions ?? []).map((r) => r.trim().toLowerCase()).filter(Boolean)
 
   return findAll()
-    .filter(i => i.expirationDate >= today)
-    .filter(i => !banned.some(word => i.name.toLowerCase().includes(word)))
+    .filter((i) => i.expirationDate >= today)
+    .filter((i) => !banned.some((word) => i.name.toLowerCase().includes(word)))
     .sort((a, b) => a.expirationDate.localeCompare(b.expirationDate))
     .slice(0, max)
 }
 
-export async function searchRecipes( query = '', ingredients: string[] = [], number = 20, options: { prioritize?: string[] } = {},
+export async function searchRecipes(
+  query = '',
+  ingredients: string[] = [],
+  number = 20,
+  options: { prioritize?: string[] } = {},
 ): Promise<RecipeSummary[]> {
   const apiKey = import.meta.env.VITE_SPOONACULAR_API_KEY
   if (!apiKey) throw new Error('Falta a variável VITE_SPOONACULAR_API_KEY no ficheiro .env')
@@ -81,31 +95,74 @@ export async function searchRecipes( query = '', ingredients: string[] = [], num
     }
     throw error
   }
-  const bannedItems = (profile?.restrictions ?? []).map(r => r.trim().toLowerCase()).filter(Boolean)
 
-  const filteredRecipes = data.results.filter(r => {
-    const text = [r.title, ...(r.usedIngredients ?? []).map(i => i.original)]
+  const bannedItems = (profile?.restrictions ?? []).map((r) => r.trim().toLowerCase()).filter(Boolean)
+
+  const filteredRecipes = data.results.filter((r) => {
+    const text = [r.title, ...(r.usedIngredients ?? []).map((i) => i.original)]
       .join(' ')
       .toLowerCase()
 
-    return !bannedItems.some(word => text.includes(word))
+    return !bannedItems.some((word) => text.includes(word))
   })
 
-  const priority = (options.prioritize ?? []).map(n => n.toLowerCase())
-  if (priority.length === 0) return filteredRecipes
+  const pantryItems = findAll()
+  const now = new Date()
 
-  function getRecipeScore(recipe: RecipeSummary) {
-    const recipeIngredients = (recipe.extendedIngredients ?? []).map(i => i.name.toLowerCase())
+  const enrichedRecipes: RecipeSummary[] = filteredRecipes.map((r) => {
+    const allIngredients =
+      (r.extendedIngredients ?? []).length > 0
+        ? r.extendedIngredients!
+        : [...(r.usedIngredients ?? []), ...(r.missedIngredients ?? [])]
 
-    return priority.reduce((total, name, index) => {
-      const found = recipeIngredients.some(
-        ingredient => ingredient.includes(name) || name.includes(ingredient),
-      )
-      return total + (found ? priority.length - index : 0)
-    }, 0)
+    if (allIngredients.length > 0) {
+      const overlap = calculateRecipeOverlap(allIngredients, pantryItems, now)
+      return {
+        ...r,
+        overlapPercentage: overlap.overlapPercentage,
+        totalIngredients: overlap.totalIngredients,
+        usedIngredientCount: overlap.inStockCount,
+        missedIngredientCount: overlap.missingCount,
+        usesExpiring: overlap.usesExpiring,
+        expiringIngredients: overlap.expiringIngredients,
+      }
+    }
+
+    return enrichRecipeWithOverlap(
+      {
+        id: r.id,
+        title: r.title,
+        image: r.image,
+        imageType: r.imageType,
+        usedIngredients: (r.usedIngredients ?? []).map((i, idx) => ({ id: idx, name: i.name, original: i.original })),
+        missedIngredients: (r.missedIngredients ?? []).map((i, idx) => ({ id: idx, name: i.name, original: i.original })),
+      },
+      pantryItems,
+      now,
+    )
+  })
+
+  const priority = (options.prioritize ?? []).map((n) => n.toLowerCase())
+  if (priority.length > 0) {
+    function getRecipeScore(recipe: RecipeSummary) {
+      const recipeIngredients = (recipe.extendedIngredients ?? []).map((i) => i.name.toLowerCase())
+
+      return priority.reduce((total, name, index) => {
+        const found = recipeIngredients.some(
+          (ingredient) => ingredient.includes(name) || name.includes(ingredient),
+        )
+        return total + (found ? priority.length - index : 0)
+      }, 0)
+    }
+
+    return enrichedRecipes.sort((a, b) => getRecipeScore(b) - getRecipeScore(a))
   }
 
-  return filteredRecipes.sort((a, b) => getRecipeScore(b) - getRecipeScore(a))
+  return prioritizeRecipes(enrichedRecipes)
+}
+
+export async function searchRecipesByIngredients(ingredients: string[], number = 12): Promise<RecipeSummary[]> {
+  return searchRecipes('', ingredients, number, { prioritize: ingredients })
 }
 
 export interface RecipeIngredient {
