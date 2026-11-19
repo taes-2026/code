@@ -49,7 +49,10 @@ function removeCollection(id: string, name: string) {
   <main class="page-container">
     <header class="page-header">
       <h2>Receitas guardadas</h2>
-      <router-link to="/dashboard" class="back-link">Voltar</router-link>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <router-link to="/shopping-list" class="back-link">Lista de compras</router-link>
+        <router-link to="/dashboard" class="back-link">Voltar</router-link>
+      </div>
     </header>
 
     <div class="toolbar">

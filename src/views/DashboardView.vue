@@ -70,6 +70,10 @@ function recipies() {
 function bookmarks() {
   router.push({ name: 'bookmarks' })
 }
+
+function shoppingList() {
+  router.push({ name: 'shopping-list' })
+}
 </script>
 
 <template>
@@ -106,6 +110,7 @@ function bookmarks() {
         <button class="add" @click="addCategory">Adicionar categoria</button>
         <button class="recipe" @click="recipies">Procurar receitas</button>
         <button class="recipe" @click="bookmarks">Receitas guardadas</button>
+        <button class="shopping" @click="shoppingList">Lista de compras</button>
       </div>
 
       <h2>Dispensa</h2>
@@ -199,6 +204,12 @@ main {
 }
 
 .recipe {
+  width: auto;
+  margin-top: 1rem;
+  padding-inline: 1.25rem;
+}
+
+.shopping {
   width: auto;
   margin-top: 1rem;
   padding-inline: 1.25rem;
