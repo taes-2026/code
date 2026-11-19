@@ -2,12 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getRecipeInformation, type RecipeDetails } from '@/services/recipes'
 import { findAll as findAllPantryItems } from '@/services/items'
-import { calculateRecipeOverlap, type OverlapResult } from '@/domain/overlap'
+import { calculateRecipeOverlap, isIngredientMatch, type OverlapResult } from '@/domain/overlap'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import CollectionsModal from '@/components/CollectionsModal.vue'
 import CookModeModal from '@/components/CookModeModal.vue'
 import MealSummary from '@/components/MealSummary.vue'
 import { useBookmarks } from '@/stores/bookmarks'
+import { useShoppingList } from '@/stores/shoppingList'
 import type { RecipeReference } from '@/types/bookmark'
 
 const props = defineProps<{ recipeId: number }>()
@@ -34,6 +35,44 @@ function getOverlapTone(pct: number): string {
 }
 
 const { isBookmarked } = useBookmarks()
+const { addMissing } = useShoppingList()
+const shoppingMessage = ref('')
+let feedbackTimer: ReturnType<typeof setTimeout> | undefined
+
+function addMissingToShoppingList() {
+    if (!recipe.value || !overlapData.value) return
+
+    const missingStatuses = overlapData.value.ingredients.filter((i) => !i.inStock)
+    const missingItems = missingStatuses.map((ms) => {
+        const ext = recipe.value?.extendedIngredients?.find(
+            (e) => e.name.toLowerCase() === ms.name.toLowerCase() || isIngredientMatch(e.name, ms.name),
+        )
+        return {
+            name: ms.name,
+            original: ext?.original || ms.original || ms.name,
+            amount: ext?.amount,
+            unit: ext?.unit,
+        }
+    })
+
+    if (missingItems.length === 0) return
+
+    const result = addMissing(
+        { id: recipe.value.id, title: recipe.value.title },
+        missingItems,
+    )
+
+    if (result.added.length > 0) {
+        shoppingMessage.value = `${result.added.length} ingrediente(s) adicionado(s) à lista de compras.`
+    } else {
+        shoppingMessage.value = 'Os ingredientes em falta já estão na lista de compras.'
+    }
+
+    clearTimeout(feedbackTimer)
+    feedbackTimer = setTimeout(() => {
+        shoppingMessage.value = ''
+    }, 4000)
+}
 
 const reference = computed<RecipeReference | null>(() =>
     recipe.value
@@ -113,6 +152,7 @@ onMounted(() => {
     document.body.style.overflow = 'hidden'
 })
 onBeforeUnmount(() => {
+    clearTimeout(feedbackTimer)
     document.removeEventListener('keydown', onKeydown)
     window.removeEventListener('online', updateOnlineStatus)
     window.removeEventListener('offline', updateOnlineStatus)
@@ -156,6 +196,20 @@ onBeforeUnmount(() => {
                         <button type="button" class="summary-btn" @click="showMealSummary = true">
                             Resumo da refeição
                         </button>
+                        <button
+                            v-if="overlapData && overlapData.missingCount > 0"
+                            type="button"
+                            class="shopping-btn"
+                            @click="addMissingToShoppingList"
+                        >
+                            Add missing to the shopping list
+                        </button>
+                        <div v-if="shoppingMessage" class="shopping-feedback" role="status">
+                            <span>{{ shoppingMessage }}</span>
+                            <router-link to="/shopping-list" class="feedback-link" @click="emit('close')">
+                                Ver lista de compras
+                            </router-link>
+                        </div>
                     </div>
 
                     <div v-if="overlapData" class="overlap-card">
@@ -392,6 +446,44 @@ onBeforeUnmount(() => {
 
 .summary-btn:hover {
     background: #eaf5ef;
+}
+
+.shopping-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 1px solid #0d6efd;
+    border-radius: 10px;
+    background: #0d6efd;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.shopping-btn:hover {
+    background: #0b5ed7;
+}
+
+.shopping-feedback {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #e7f1ff;
+    border: 1px solid #b6d4fe;
+    color: #084298;
+    font-size: 0.85rem;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.feedback-link {
+    color: #0d6efd;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 .summary-overlay {

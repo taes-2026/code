@@ -7,6 +7,7 @@ import ManualEntryView from '@/views/ManualEntryView.vue'
 import CategoryEntryView from '@/views/CategoryEntryView.vue'
 import RecipesView from '@/views/RecipesView.vue'
 import BookmarksView from '@/views/BookmarksView.vue'
+import ShoppingListView from '@/views/ShoppingListView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -19,6 +20,7 @@ const router = createRouter({
     { path: '/items/new', name: 'category-entry', component: CategoryEntryView},
     { path: '/recipes', name: 'recipes', component: RecipesView },
     { path: '/bookmarks', name: 'bookmarks', component: BookmarksView },
+    { path: '/shopping-list', name: 'shopping-list', component: ShoppingListView },
   ],
 })
 

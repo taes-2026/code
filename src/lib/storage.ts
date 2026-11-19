@@ -2,6 +2,7 @@ import type { RecipeBookmark, RecipeCollection } from '@/types/bookmark'
 import type { InventoryItem } from '@/types/item'
 import type { Profile } from '@/types/profile'
 import type { RecipeDetails } from '@/services/recipes'
+import type { ShoppingListItem } from '@/types/shoppingList'
 
 const PREFIX = 'smartpantry'
 
@@ -14,6 +15,7 @@ type StorageData = {
   bookmarks: RecipeBookmark[]
   collections: RecipeCollection[]
   cachedRecipes: Record<string, RecipeDetails>
+  shoppingList: ShoppingListItem[]
 }
 
 export type StorageKey = keyof StorageData
@@ -88,6 +90,19 @@ function isCachedRecipe(value: unknown): value is RecipeDetails {
   return typeof recipe.id === 'number' && typeof recipe.title === 'string'
 }
 
+function isShoppingListItem(value: unknown): value is ShoppingListItem {
+  if (typeof value !== 'object' || value === null) return false
+
+  const item = value as Record<string, unknown>
+
+  return (
+    typeof item.id === 'string' &&
+    typeof item.name === 'string' &&
+    typeof item.checked === 'boolean' &&
+    typeof item.createdAt === 'string'
+  )
+}
+
 const entries: { [K in StorageKey]: Entry<StorageData[K]> } = {
   profile: {
     default: () => null,
@@ -130,6 +145,11 @@ const entries: { [K in StorageKey]: Entry<StorageData[K]> } = {
       value !== null &&
       !Array.isArray(value) &&
       Object.values(value).every(isCachedRecipe),
+  },
+  shoppingList: {
+    default: () => [],
+    check: (value): value is ShoppingListItem[] =>
+      Array.isArray(value) && value.every(isShoppingListItem),
   },
 }
 

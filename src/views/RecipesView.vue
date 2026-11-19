@@ -116,6 +116,7 @@ async function clearIngredients() {
         <header class="page-header">
             <h2>Receitas</h2>
             <div class="header-links">
+                <router-link to="/shopping-list" class="back-link">Lista de compras</router-link>
                 <router-link to="/bookmarks" class="back-link">Guardadas</router-link>
                 <router-link to="/" class="back-link">Voltar</router-link>
             </div>
