@@ -16,7 +16,7 @@ export function findAll(): Profile[] {
         id: (legacy as Profile).id ?? crypto.randomUUID(),
         name: legacy.name,
         diet: legacy.diet,
-        allergies: legacy.allergies ?? [],
+        intolerances: legacy.intolerances ?? [],
         restrictions: legacy.restrictions ?? [],
         createdAt: legacy.createdAt ?? now,
         updatedAt: legacy.updatedAt ?? now,

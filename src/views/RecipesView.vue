@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { searchRecipes, type RecipeSummary, searchRecipesByIngredients } from '@/services/recipes'
+import { searchRecipes, getPantryNames, type RecipeSummary } from '@/services/recipes'
 import { getActiveProfile } from '@/services/profiles'
 import { DIETS } from '@/domain/diet'
 import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
@@ -72,27 +72,18 @@ function getOverlapTone(pct: number): string {
     return 'tone-low'
 }
 
-async function onIngredientsConfirm(selected: string[]) {
-    ingredients.value = selected
-    showIngredientsModal.value = false
-    loading.value = true
-    error.value = ''
-    try {
-        rawRecipes.value = await searchRecipesByIngredients(selected)
-    } catch (e) {
-        error.value = e instanceof Error ? e.message : 'Erro desconhecido'
-        rawRecipes.value = []
-    } finally {
-        loading.value = false
-    }
-}
-
 async function loadRecipes() {
     activeProfile.value = getActiveProfile()
     loading.value = true
     error.value = ''
     try {
-        rawRecipes.value = await searchRecipes(query.value)
+        const hasQuery = query.value.trim().length > 0
+        const selected = ingredients.value
+        const expiring = getPantryNames().map((i) => i.name)
+
+        const base = selected.length > 0 ? selected : hasQuery ? [] : expiring
+
+        rawRecipes.value = await searchRecipes(query.value, base, 20, { prioritize: base })
     } catch (e) {
         error.value = e instanceof Error ? e.message : 'Erro desconhecido'
         rawRecipes.value = []
@@ -101,7 +92,23 @@ async function loadRecipes() {
     }
 }
 
+async function onIngredientsConfirm(selected: string[]) {
+    ingredients.value = selected
+    showIngredientsModal.value = false
+    await loadRecipes()
+}
+
 onMounted(loadRecipes)
+
+async function removeIngredient(name: string) {
+    ingredients.value = ingredients.value.filter((i) => i !== name)
+    await loadRecipes()
+}
+
+async function clearIngredients() {
+    ingredients.value = []
+    await loadRecipes()
+}
 </script>
 
 <template>
@@ -115,16 +122,30 @@ onMounted(loadRecipes)
         </header>
 
         <p v-if="activeProfile" class="profile-hint">
-            Sugestões adaptadas ao perfil de <strong>{{ activeProfile.name }}</strong> ({{ DIETS[activeProfile.diet] ?? activeProfile.diet }})
+            Sugestões adaptadas ao perfil de <strong>{{ activeProfile.name }}</strong> ({{ DIETS[activeProfile.diet] ??
+                activeProfile.diet }})
         </p>
 
         <form class="search-form" @submit.prevent="loadRecipes">
             <input v-model="query" type="search" placeholder="Pesquisar receitas (ex: pasta)" />
             <button type="submit" class="btn-submit" :disabled="loading">Pesquisar</button>
-            <button type="button" class="btn-secondary" :disabled="loading" @click="showIngredientsModal = true">
-                Selecionar da despensa
-            </button>
         </form>
+
+        <button type="button" class="btn-submit" :disabled="loading" @click="showIngredientsModal = true">
+            Select items
+        </button>
+
+        <div v-if="ingredients.length > 0" class="selected-chips">
+            <button v-for="name in ingredients" :key="name" type="button" class="chip" :disabled="loading"
+                @click="removeIngredient(name)">
+                {{ name }} ✕
+            </button>
+            <button type="button" class="chip chip-clear" :disabled="loading" @click="clearIngredients">
+                Limpar tudo
+            </button>
+        </div>
+
+        <h2 class="section-title">Suggested recipes based on your pantry</h2>
 
         <div v-if="recipes.length > 0" class="toolbar">
             <span class="results-count">{{ recipes.length }} receitas encontradas</span>
@@ -225,46 +246,38 @@ onMounted(loadRecipes)
 .search-form {
     display: flex;
     gap: 8px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
+    margin-bottom: 20px;
 }
 
 .search-form input {
     flex: 1;
-    min-width: 200px;
-    padding: 8px 12px;
+    padding: 8px;
     border: 1px solid #ccc;
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
 .btn-submit {
+    flex: 1;
     padding: 8px 16px;
     background-color: #198754;
     color: white;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-weight: 500;
 }
 
-.btn-secondary {
-    padding: 8px 16px;
-    background-color: #f8fafc;
-    color: #334155;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.btn-secondary:hover {
-    background-color: #f1f5f9;
-}
-
-.btn-submit:disabled,
-.btn-secondary:disabled {
+.btn-submit:disabled {
     opacity: 0.6;
     cursor: default;
+}
+
+.status {
+    text-align: center;
+    color: #666;
+}
+
+.status.error {
+    color: #dc3545;
 }
 
 .toolbar {
@@ -297,25 +310,15 @@ onMounted(loadRecipes)
     font-size: 0.85rem;
 }
 
-.status {
-    text-align: center;
-    color: #666;
-    padding: 30px 0;
-}
-
-.status.error {
-    color: #dc3545;
-}
-
 .recipe-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 16px;
 }
 
 .recipe-card {
     border: 1px solid var(--color-border, #ddd);
-    border-radius: 10px;
+    border-radius: 8px;
     overflow: hidden;
     background: var(--color-background, #fff);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -330,19 +333,19 @@ onMounted(loadRecipes)
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
+.recipe-card img {
+    width: 100%;
+    aspect-ratio: 312 / 231;
+    object-fit: cover;
+    display: block;
+}
+
 .card-media {
     position: relative;
     width: 100%;
     aspect-ratio: 312 / 231;
     overflow: hidden;
     background: #f1f5f9;
-}
-
-.recipe-card img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
 }
 
 .card-overlay-badges {
@@ -401,8 +404,9 @@ onMounted(loadRecipes)
 }
 
 .recipe-card h3 {
-    font-size: 0.95rem;
+    font-size: 1rem;
     margin: 0 0 8px;
+    padding: 0;
     line-height: 1.3;
 }
 
@@ -438,5 +442,54 @@ onMounted(loadRecipes)
     padding: 4px 6px;
     border-radius: 4px;
     margin: 6px 0 0;
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 24px 0 12px;
+    padding-left: 10px;
+    border-left: 4px solid #198754;
+    color: #1f2937;
+}
+
+.selected-chips {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-top: 12px;
+}
+
+.selected-chips .chip {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 0;
+    height: auto;
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid #198754;
+    border-radius: 999px;
+    background: #f0fdf4;
+    color: #15803d;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    cursor: pointer;
+}
+
+.selected-chips .chip:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.selected-chips .chip-clear {
+    background: #fff;
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.chip:disabled {
+    opacity: 0.6;
+    cursor: default;
 }
 </style>

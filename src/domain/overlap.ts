@@ -26,13 +26,14 @@ export interface RecipeWithOverlap {
   id: number
   title: string
   image: string
-  imageType?: string
+  imageType: string
   overlapPercentage?: number
   totalIngredients?: number
   usedIngredientCount?: number
   missedIngredientCount?: number
-  usedIngredients?: { id: number; name: string; original?: string }[]
-  missedIngredients?: { id: number; name: string; original?: string }[]
+  usedIngredients?: { id?: number; name: string; original?: string }[]
+  missedIngredients?: { id?: number; name: string; original?: string }[]
+  extendedIngredients?: { name: string; original?: string }[]
   usesExpiring?: boolean
   expiringIngredients?: string[]
 }
@@ -217,11 +218,11 @@ export function calculateRecipeOverlap(
   }
 }
 
-export function enrichRecipeWithOverlap(
-  recipe: RecipeWithOverlap,
+export function enrichRecipeWithOverlap<T extends RecipeWithOverlap>(
+  recipe: T,
   pantryItems: readonly InventoryItem[],
   now = new Date(),
-): RecipeWithOverlap {
+): T {
   const used = recipe.usedIngredients ?? []
   const missed = recipe.missedIngredients ?? []
   const total = used.length + missed.length
@@ -314,22 +315,22 @@ export function violatesDietaryProfile(
     if (allIngredientNames.some((n) => nonVeganTerms.some((t) => n.includes(t)))) return true
   }
 
-  if (profile.diet === 'pescatarian') {
+  if (profile.diet === 'pescetarian') {
     const nonPescaTerms = ['beef', 'pork', 'chicken', 'meat', 'bacon', 'ham', 'carne', 'frango', 'porco']
     if (allIngredientNames.some((n) => nonPescaTerms.some((t) => n.includes(t)))) return true
   }
 
-  if (profile.allergies?.includes('lactose')) {
+  if (profile.intolerances?.includes('dairy')) {
     const dairyTerms = ['milk', 'cheese', 'butter', 'cream', 'yogurt', 'dairy', 'leite', 'queijo', 'manteiga', 'iogurte', 'natas']
     if (allIngredientNames.some((n) => dairyTerms.some((t) => n.includes(t)))) return true
   }
 
-  if (profile.allergies?.includes('peanuts')) {
+  if (profile.intolerances?.includes('peanut')) {
     const peanutTerms = ['peanut', 'peanuts', 'peanut butter', 'amendoim', 'amendoins']
     if (allIngredientNames.some((n) => peanutTerms.some((t) => n.includes(t)))) return true
   }
 
-  if (profile.restrictions?.includes('gluten')) {
+  if (profile.intolerances?.includes('gluten')) {
     const glutenTerms = ['wheat', 'flour', 'gluten', 'bread', 'pasta', 'farinha', 'trigo', 'pao', 'massa']
     if (allIngredientNames.some((n) => glutenTerms.some((t) => n.includes(t)))) return true
   }
@@ -342,6 +343,16 @@ export function violatesDietaryProfile(
   if (profile.restrictions?.includes('sugar')) {
     const sugarTerms = ['sugar', 'acucar', 'açúcar', 'syrup', 'caramel']
     if (allIngredientNames.some((n) => sugarTerms.some((t) => n.includes(t)))) return true
+  }
+
+  if (profile.restrictions?.includes('beef')) {
+    const beefTerms = ['beef', 'carne de vaca', 'vaca', 'steak']
+    if (allIngredientNames.some((n) => beefTerms.some((t) => n.includes(t)))) return true
+  }
+
+  if (profile.restrictions?.includes('alcohol')) {
+    const alcoholTerms = ['alcohol', 'wine', 'beer', 'vodka', 'rum', 'whiskey', 'vinho', 'cerveja', 'álcool']
+    if (allIngredientNames.some((n) => alcoholTerms.some((t) => n.includes(t)))) return true
   }
 
   return false

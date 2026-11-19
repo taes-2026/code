@@ -2,20 +2,31 @@ export const DIETS = {
   omnivore: 'Omnívoro',
   vegetarian: 'Vegetariano',
   vegan: 'Vegano',
-  pescatarian: 'Pescetariano',
+  pescetarian: 'Pescetariano',
 } as const
 
-export const ALLERGIES = {
-  lactose: 'Lactose',
-  peanuts: 'Amendoins',
+export const INTOLERANCES = {
+  dairy: 'Lactose',
+  gluten: 'Glúten',
+  peanut: 'Amendoins',
+  egg: 'Ovos',
+  grain: 'Cereais',
+  seafood: 'Frutos do mar',
+  sesame: 'Sésamo',
+  shellfish: 'Crustáceos',
+  soy: 'Soja',
+  sulfite: 'Sulfito',
+  treenut: 'Frutos secos',
+  wheat: 'Trigo',
 } as const
 
 export const RESTRICTIONS = {
-  gluten: 'Glúten',
-  pork: 'Porco',
-  sugar: 'Açucar',
+  pork: 'Carne de Porco',
+  sugar: 'Açúcar',
+  beef: 'Carne de vaca',
+  alcohol: 'Álcool',
 } as const
 
 export type Diet = keyof typeof DIETS
-export type Allergy = keyof typeof ALLERGIES
+export type Intolerance = keyof typeof INTOLERANCES
 export type Restriction = keyof typeof RESTRICTIONS

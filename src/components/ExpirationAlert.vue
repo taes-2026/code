@@ -10,6 +10,10 @@ const props = defineProps<{
 }>()
 
 const expiring = computed(() => getExpiringItems(props.items, props.now))
+const expired = computed(() => {
+  const oneDayAgo = new Date(props.now.getTime() - 24 * 60 * 60 * 1000)
+  return props.items.filter(item => new Date(item.expirationDate) < oneDayAgo)
+})
 </script>
 
 <template>
@@ -19,6 +23,19 @@ const expiring = computed(() => getExpiringItems(props.items, props.now))
 
     <ul>
       <li v-for="item in expiring" :key="item.id">
+        <span class="name">{{ item.name }}</span>
+        <span class="quantity">{{ item.quantity }} {{ UNITS[item.unit] ?? item.unit }}</span>
+        <span class="time">{{ describeExpiration(item.expirationDate, now) }}</span>
+      </li>
+    </ul>
+  </section>
+
+  <section v-if="expired.length > 0" class="expired" aria-labelledby="expired-title">
+    <h2 id="expired-title">Expirados</h2>
+    <p class="hint">Estes produtos já expiraram.</p>
+
+    <ul>
+      <li v-for="item in expired" :key="item.id">
         <span class="name">{{ item.name }}</span>
         <span class="quantity">{{ item.quantity }} {{ UNITS[item.unit] ?? item.unit }}</span>
         <span class="time">{{ describeExpiration(item.expirationDate, now) }}</span>
@@ -35,6 +52,15 @@ const expiring = computed(() => getExpiringItems(props.items, props.now))
   border-left-width: 4px;
   border-radius: 8px;
   background: var(--color-warning-bg);
+}
+
+.expired {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-error);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--color-error-bg);
 }
 
 h2 {
