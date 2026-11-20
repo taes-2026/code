@@ -6,6 +6,7 @@ import { formatClock } from '@/domain/timers'
 import { useTimers } from '@/composables/useTimers'
 import { useBookmarks } from '@/stores/bookmarks'
 import { findAll as findAllItems, subscribe as subscribeItems } from '@/services/items'
+import { recordPreparation, statsFor } from '@/services/preparations'
 import MealSummary from '@/components/MealSummary.vue'
 import TimerAlert from '@/components/TimerAlert.vue'
 import type { RecipeDetails, RecipeIngredient } from '@/services/recipes'
@@ -18,6 +19,7 @@ const emit = defineEmits<{ close: [] }>()
 const steps = computed(() => buildCookingSteps(props.recipe))
 const current = ref(0)
 const completed = ref(false)
+const preparationCount = ref(statsFor(props.recipe.id).count)
 
 const { timers, finishedTimers, addTimer, toggleTimer, resetTimer, dismissTimer, dismissFinished } =
   useTimers()
@@ -55,6 +57,15 @@ function previous() {
 }
 
 function finish() {
+  if (completed.value) return
+
+  try {
+    recordPreparation(reference.value)
+  } catch (error) {
+    console.error('[preparations] não foi possível registar a preparação', error)
+  }
+
+  preparationCount.value = statsFor(props.recipe.id).count
   completed.value = true
 }
 
@@ -157,6 +168,13 @@ onBeforeUnmount(() => {
         <span class="complete-check" aria-hidden="true">✓</span>
         <h2>Refeição concluída!</h2>
         <p class="complete-text">Guarda esta receita para a voltares a cozinhar mais tarde.</p>
+        <p v-if="preparationCount > 0" class="preparation-note" role="status">
+          {{
+            preparationCount === 1
+              ? 'Esta é a primeira vez que preparas esta receita.'
+              : `Já preparaste esta receita ${preparationCount} vezes.`
+          }}
+        </p>
 
         <div class="summary-wrap">
           <MealSummary :recipe="recipe" />
@@ -701,6 +719,15 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #d1e7dd;
   color: #0f5132;
+  font-weight: 600;
+}
+
+.preparation-note {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
   font-weight: 600;
 }
 
