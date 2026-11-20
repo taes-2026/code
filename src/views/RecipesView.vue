@@ -7,6 +7,7 @@ import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
 import ChoosePantrysForSearchModal from '@/components/ChoosePantrysForSearchModal.vue'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import CollectionsModal from '@/components/CollectionsModal.vue'
+import { countsByRecipe } from '@/services/preparations'
 import type { RecipeReference } from '@/types/bookmark'
 
 const rawRecipes = ref<RecipeSummary[]>([])
@@ -19,6 +20,20 @@ const showIngredientsModal = ref(false)
 const ingredients = ref<string[]>([])
 const activeProfile = ref(getActiveProfile())
 const sortBy = ref<'expiring' | 'overlap' | 'missing' | 'name'>('expiring')
+const preparationCounts = ref(countsByRecipe())
+
+function refreshPreparations() {
+    preparationCounts.value = countsByRecipe()
+}
+
+function countFor(recipeId: number): number {
+    return preparationCounts.value.get(recipeId) ?? 0
+}
+
+function closeRecipe() {
+    selectedRecipeId.value = null
+    refreshPreparations()
+}
 
 function openCollections(recipe: RecipeSummary) {
     pickerRecipe.value = { id: recipe.id, title: recipe.title, image: recipe.image }
@@ -98,7 +113,10 @@ async function onIngredientsConfirm(selected: string[]) {
     await loadRecipes()
 }
 
-onMounted(loadRecipes)
+onMounted(() => {
+    refreshPreparations()
+    loadRecipes()
+})
 
 async function removeIngredient(name: string) {
     ingredients.value = ingredients.value.filter((i) => i !== name)
@@ -192,6 +210,9 @@ async function clearIngredients() {
                         <span v-if="recipe.missedIngredientCount" class="stat-badge missing">
                             {{ recipe.missedIngredientCount }} em falta
                         </span>
+                        <span v-if="countFor(recipe.id) > 0" class="stat-badge prepared">
+                            {{ countFor(recipe.id) }}x preparada
+                        </span>
                     </div>
                     <p v-if="recipe.usesExpiring && recipe.expiringIngredients?.length" class="card-expiring-info">
                         Aproveita: <strong>{{ recipe.expiringIngredients.join(', ') }}</strong>
@@ -206,7 +227,7 @@ async function clearIngredients() {
         <CollectionsModal v-if="pickerRecipe" :recipe="pickerRecipe" @close="pickerRecipe = null" />
 
         <RecipeDetailModal v-if="selectedRecipeId !== null" :recipe-id="selectedRecipeId"
-            @close="selectedRecipeId = null" />
+            @close="closeRecipe" />
     </main>
 </template>
 
@@ -434,6 +455,11 @@ async function clearIngredients() {
 .stat-badge.missing {
     background: #fee2e2;
     color: #b91c1c;
+}
+
+.stat-badge.prepared {
+    background: #e0f2fe;
+    color: #075985;
 }
 
 .card-expiring-info {

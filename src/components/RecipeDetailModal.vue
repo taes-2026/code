@@ -9,7 +9,9 @@ import CookModeModal from '@/components/CookModeModal.vue'
 import MealSummary from '@/components/MealSummary.vue'
 import { useBookmarks } from '@/stores/bookmarks'
 import { useShoppingList } from '@/stores/shoppingList'
+import { statsFor } from '@/services/preparations'
 import type { RecipeReference } from '@/types/bookmark'
+import type { PreparationStats } from '@/types/preparation'
 
 const props = defineProps<{ recipeId: number }>()
 const emit = defineEmits<{ close: [] }>()
@@ -22,6 +24,7 @@ const showCookMode = ref(false)
 const showMealSummary = ref(false)
 const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 const pantryItems = ref(findAllPantryItems())
+const preparationStats = ref<PreparationStats>(statsFor(props.recipeId))
 
 const overlapData = computed<OverlapResult | null>(() => {
     if (!recipe.value || !recipe.value.extendedIngredients) return null
@@ -85,6 +88,7 @@ async function load(id: number) {
     loading.value = true
     error.value = ''
     recipe.value = null
+    preparationStats.value = statsFor(id)
     try {
         recipe.value = await getRecipeInformation(id)
     } catch (e) {
@@ -95,6 +99,19 @@ async function load(id: number) {
 }
 
 watch(() => props.recipeId, load, { immediate: true })
+
+function closeCookMode() {
+    showCookMode.value = false
+    preparationStats.value = statsFor(props.recipeId)
+}
+
+function formatPreparedDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('pt-PT', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+    })
+}
 
 function stripHtml(html: string | null | undefined): string {
     if (!html) return ''
@@ -185,6 +202,23 @@ onBeforeUnmount(() => {
                             </button>
                             <BookmarkButton v-if="reference" :recipe="reference"
                                 @longpress="showCollections = true" />
+                        </div>
+                    </div>
+
+                    <div class="preparation-card" :class="{ 'is-empty': preparationStats.count === 0 }">
+                        <div class="preparation-count" aria-hidden="true">
+                            {{ preparationStats.count }}
+                        </div>
+                        <div class="preparation-info">
+                            <strong v-if="preparationStats.count > 0">
+                                Preparada {{ preparationStats.count }}
+                                {{ preparationStats.count === 1 ? 'vez' : 'vezes' }}
+                            </strong>
+                            <strong v-else>Ainda não preparada</strong>
+                            <span v-if="preparationStats.lastPreparedAt">
+                                Última preparação: {{ formatPreparedDate(preparationStats.lastPreparedAt) }}
+                            </span>
+                            <span v-else>Conclui o modo cozinha para registares a primeira preparação.</span>
                         </div>
                     </div>
 
@@ -309,7 +343,7 @@ onBeforeUnmount(() => {
     <CollectionsModal v-if="showCollections && reference" :recipe="reference"
         @close="showCollections = false" />
 
-    <CookModeModal v-if="showCookMode && recipe" :recipe="recipe" @close="showCookMode = false" />
+    <CookModeModal v-if="showCookMode && recipe" :recipe="recipe" @close="closeCookMode" />
 
     <div v-if="showMealSummary && recipe" class="overlay summary-overlay" @click.self="showMealSummary = false">
         <div class="modal summary-modal" role="dialog" aria-modal="true" aria-label="Resumo da refeição">
@@ -407,6 +441,50 @@ onBeforeUnmount(() => {
     color: #198754;
     font-size: 0.85rem;
     cursor: pointer;
+}
+
+.preparation-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid #bae6fd;
+    border-radius: 10px;
+    background: #f0f9ff;
+}
+
+.preparation-card.is-empty {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+}
+
+.preparation-count {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #0369a1;
+    font-variant-numeric: tabular-nums;
+}
+
+.preparation-card.is-empty .preparation-count {
+    color: #94a3b8;
+}
+
+.preparation-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.preparation-info strong {
+    font-size: 0.95rem;
+}
+
+.preparation-info span {
+    font-size: 0.85rem;
+    color: #64748b;
 }
 
 .detail-actions {

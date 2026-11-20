@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import CollectionsModal from '@/components/CollectionsModal.vue'
 import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
 import { useBookmarks } from '@/stores/bookmarks'
+import { countsByRecipe } from '@/services/preparations'
 import type { RecipeBookmark, RecipeReference } from '@/types/bookmark'
 
 const { state, bookmarksOf, deleteCollection } = useBookmarks()
@@ -12,6 +13,22 @@ const selectedCollectionId = ref<string | null>(null)
 const selectedRecipeId = ref<number | null>(null)
 const pickerRecipe = ref<RecipeReference | null>(null)
 const showCollections = ref(false)
+const preparationCounts = ref(countsByRecipe())
+
+function refreshPreparations() {
+  preparationCounts.value = countsByRecipe()
+}
+
+function countFor(recipeId: number): number {
+  return preparationCounts.value.get(recipeId) ?? 0
+}
+
+function closeRecipe() {
+  selectedRecipeId.value = null
+  refreshPreparations()
+}
+
+onMounted(refreshPreparations)
 
 const visibleBookmarks = computed(() => bookmarksOf(selectedCollectionId.value))
 
@@ -122,6 +139,11 @@ function removeCollection(id: string, name: string) {
         <div class="card-body">
           <h3>{{ bookmark.title }}</h3>
 
+          <p v-if="countFor(bookmark.id) > 0" class="prep-badge">
+            Preparada {{ countFor(bookmark.id) }}
+            {{ countFor(bookmark.id) === 1 ? 'vez' : 'vezes' }}
+          </p>
+
           <div v-if="collectionNames(bookmark).length" class="badges">
             <span v-for="name in collectionNames(bookmark)" :key="name" class="badge">
               {{ name }}
@@ -143,7 +165,7 @@ function removeCollection(id: string, name: string) {
     <RecipeDetailModal
       v-if="selectedRecipeId !== null"
       :recipe-id="selectedRecipeId"
-      @close="selectedRecipeId = null"
+      @close="closeRecipe"
     />
 
     <CollectionsModal v-if="pickerRecipe" :recipe="pickerRecipe" @close="pickerRecipe = null" />
@@ -311,6 +333,17 @@ function removeCollection(id: string, name: string) {
 .card-body h3 {
   font-size: 1rem;
   margin: 0 0 8px;
+}
+
+.prep-badge {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .badges {
