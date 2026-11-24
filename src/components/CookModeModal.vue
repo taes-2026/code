@@ -7,6 +7,7 @@ import { useTimers } from '@/composables/useTimers'
 import { useBookmarks } from '@/stores/bookmarks'
 import { findAll as findAllItems, subscribe as subscribeItems } from '@/services/items'
 import { recordPreparation, statsFor } from '@/services/preparations'
+import { updatePantryAfterMeal, type ConsumedIngredient } from '@/services/pantry'
 import MealSummary from '@/components/MealSummary.vue'
 import TimerAlert from '@/components/TimerAlert.vue'
 import type { RecipeDetails, RecipeIngredient } from '@/services/recipes'
@@ -27,6 +28,9 @@ const { isBookmarked, toggle } = useBookmarks()
 
 const pantry = ref<InventoryItem[]>(findAllItems())
 const pantryIndex = computed(() => buildPantryIndex(pantry.value))
+const notUpdatedIngredients = ref<ConsumedIngredient[]>([])
+const pantryUpdateFailed = ref(false)
+const removedSummary = ref('')
 
 function isMissing(ingredient: RecipeIngredient): boolean {
   return !hasIngredient(pantryIndex.value, ingredient.name || ingredient.original)
@@ -63,6 +67,28 @@ function finish() {
     recordPreparation(reference.value)
   } catch (error) {
     console.error('[preparations] não foi possível registar a preparação', error)
+  }
+
+  try {
+    const { items, removed, notUpdated } = updatePantryAfterMeal(
+      props.recipe.extendedIngredients.map(({ name, amount, unit }) => ({
+        name,
+        amount,
+        unit,
+      })),
+    )
+
+    pantry.value = items
+    notUpdatedIngredients.value = notUpdated
+    removedSummary.value = removed
+      .map(
+        (ingredient) =>
+          `${ingredient.name} −${ingredient.amount}${ingredient.unit ? ` ${ingredient.unit}` : ''}`,
+      )
+      .join(' · ')
+  } catch (error) {
+    console.error('[pantry] não foi possível atualizar a despensa', error)
+    pantryUpdateFailed.value = true
   }
 
   preparationCount.value = statsFor(props.recipe.id).count
@@ -174,6 +200,32 @@ onBeforeUnmount(() => {
               ? 'Esta é a primeira vez que preparas esta receita.'
               : `Já preparaste esta receita ${preparationCount} vezes.`
           }}
+        </p>
+
+        <div
+          v-if="notUpdatedIngredients.length > 0 || pantryUpdateFailed"
+          class="pantry-warning"
+          role="status"
+        >
+          <p v-if="pantryUpdateFailed">Não foi possível atualizar a despensa.</p>
+          <template v-else>
+            <p>
+              Estes ingredientes não foram descontados porque o item não existe na despensa ou a
+              unidade não coincide:
+            </p>
+            <ul>
+              <li
+                v-for="(ingredient, index) in notUpdatedIngredients"
+                :key="`${ingredient.name}-${index}`"
+              >
+                {{ ingredient.name }} — {{ ingredient.amount }} {{ ingredient.unit }}
+              </li>
+            </ul>
+          </template>
+        </div>
+
+        <p v-if="removedSummary" class="pantry-removed" role="status">
+          <span aria-hidden="true">✓</span> Removido da despensa: {{ removedSummary }}
         </p>
 
         <div class="summary-wrap">
@@ -729,6 +781,41 @@ onBeforeUnmount(() => {
   background: #e0f2fe;
   color: #075985;
   font-weight: 600;
+}
+
+.pantry-warning {
+  width: 100%;
+  max-width: 560px;
+  padding: 12px 16px;
+  border: 1px solid #f0c36d;
+  border-radius: 12px;
+  background: #fffbeb;
+  color: #92400e;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.pantry-warning p {
+  margin: 0;
+}
+
+.pantry-warning ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.pantry-removed {
+  margin: 0;
+  max-width: 560px;
+  padding: 10px 16px;
+  border: 1px solid #a3cfbb;
+  border-radius: 12px;
+  background: #d1e7dd;
+  color: #0f5132;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
 }
 
 .complete-actions {
