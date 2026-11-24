@@ -1,4 +1,5 @@
 import { getExpirationState } from '@/domain/expiration'
+import { isIngredientMatch } from '@/domain/overlap'
 import type { InventoryItem } from '@/types/item'
 
 /**
@@ -216,4 +217,41 @@ export function hasIngredient(index: PantryIndex, ingredientName: string): boole
   return (
     ingredient.length > 0 && index.some((pantry) => describesSameIngredient(pantry, ingredient))
   )
+}
+
+export function normalizeUnit(unit: string): string {
+  const value = unit.trim().toLowerCase()
+
+  return value === '' || value === 'unit' || value === 'units' ? 'unit' : value
+}
+
+/**
+ * Joins pantry entries for the same ingredient, unit, category and expiration
+ * date, adding their quantities together. The first entry is kept.
+ */
+export function mergePantryItems(
+  items: readonly InventoryItem[],
+  now: string = new Date().toISOString(),
+): InventoryItem[] {
+  const merged: InventoryItem[] = []
+
+  for (const item of items) {
+    const existing = merged.find(
+      (candidate) =>
+        normalizeUnit(candidate.unit) === normalizeUnit(item.unit) &&
+        candidate.category === item.category &&
+        candidate.expirationDate === item.expirationDate &&
+        isIngredientMatch(candidate.name, item.name),
+    )
+
+    if (!existing) {
+      merged.push({ ...item })
+      continue
+    }
+
+    existing.quantity += item.quantity
+    existing.updatedAt = now
+  }
+
+  return merged
 }

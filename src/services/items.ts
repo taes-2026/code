@@ -1,4 +1,5 @@
 import { find, save, subscribe as subscribeStored } from '@/lib/storage'
+import { mergePantryItems } from '@/domain/pantry'
 import type { InventoryItem, ItemForm } from '@/types/item'
 
 function buildItem(form: ItemForm): InventoryItem {
@@ -17,7 +18,18 @@ function buildItem(form: ItemForm): InventoryItem {
 }
 
 export function findAll(): InventoryItem[] {
-  return find('items')
+  const items = find('items')
+  const merged = mergePantryItems(items)
+
+  if (merged.length !== items.length) {
+    try {
+      save('items', merged)
+    } catch (error) {
+      console.error('[items] não foi possível consolidar itens duplicados', error)
+    }
+  }
+
+  return merged
 }
 
 export function create(form: ItemForm): InventoryItem {
