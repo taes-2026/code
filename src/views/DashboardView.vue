@@ -6,6 +6,7 @@ import { CATEGORIES, UNITS } from '@/domain/items'
 import { DIETS } from '@/domain/diet'
 import { findAll as findAllProfiles, getActiveProfile, switchProfile } from '@/services/profiles'
 import { findAll, subscribe } from '@/services/items'
+import { exportAppData } from '@/services/export'
 import type { InventoryItem } from '@/types/item'
 import type { Profile } from '@/types/profile'
 
@@ -14,6 +15,8 @@ const profiles = ref<Profile[]>(findAllProfiles())
 const profile = ref<Profile | null>(getActiveProfile())
 const items = ref<InventoryItem[]>(findAll())
 const now = ref(new Date())
+const exportMessage = ref('')
+const exportError = ref('')
 
 let unsubscribe: (() => void) | undefined
 let clock: ReturnType<typeof setInterval> | undefined
@@ -74,6 +77,18 @@ function bookmarks() {
 function shoppingList() {
   router.push({ name: 'shopping-list' })
 }
+
+function onExport() {
+  try {
+    const filename = exportAppData()
+    exportMessage.value = `Dados exportados para ${filename}.`
+    exportError.value = ''
+  } catch (error) {
+    exportMessage.value = ''
+    exportError.value =
+      error instanceof Error ? error.message : 'Não foi possível exportar os dados.'
+  }
+}
 </script>
 
 <template>
@@ -111,7 +126,11 @@ function shoppingList() {
         <button class="recipe" @click="recipies">Procurar receitas</button>
         <button class="recipe" @click="bookmarks">Receitas guardadas</button>
         <button class="shopping" @click="shoppingList">Lista de compras</button>
+        <button class="secondary" @click="onExport">Exportar dados</button>
       </div>
+
+      <p v-if="exportMessage" class="export-message" role="status">{{ exportMessage }}</p>
+      <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
 
       <h2>Dispensa</h2>
       <p v-if="items.length === 0">Sem comida na sua dispensa</p>
@@ -217,6 +236,12 @@ main {
 
 .error {
   color: var(--color-error);
+}
+
+.export-message {
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
 }
 
 table {

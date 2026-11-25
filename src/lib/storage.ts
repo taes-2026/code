@@ -7,7 +7,7 @@ import type { ShoppingListItem } from '@/types/shoppingList'
 
 const PREFIX = 'smartpantry'
 
-type StorageData = {
+export type StorageData = {
   profile: Profile | null
   profiles: Profile[]
   activeProfileId: string | null
@@ -235,6 +235,21 @@ export function find<K extends StorageKey>(key: K): StorageData[K] {
     console.error(`[storage] JSON inválido em "${fullKey(key)}"`, error)
 
     return entries[key].default()
+  }
+}
+
+export function readAll(): StorageData {
+  return {
+    profile: find('profile'),
+    profiles: find('profiles'),
+    activeProfileId: find('activeProfileId'),
+    items: find('items'),
+    categories: find('categories'),
+    bookmarks: find('bookmarks'),
+    collections: find('collections'),
+    cachedRecipes: find('cachedRecipes'),
+    shoppingList: find('shoppingList'),
+    preparations: find('preparations'),
   }
 }
 
