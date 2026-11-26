@@ -53,7 +53,7 @@ async function submit() {
     } else {
       save({ ...form, name: form.name.trim() }, existing?.id)
     }
-    await router.push({ name: fromSettings ? 'settings' : 'dashboard' })
+    await router.push({ name: 'dashboard' })
   } catch {
     error.value = 'Não foi possível guardar o perfil.'
   } finally {
