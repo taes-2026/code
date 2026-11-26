@@ -174,6 +174,18 @@ const entries: { [K in StorageKey]: Entry<StorageData[K]> } = {
   },
 }
 
+export const STORAGE_KEYS = Object.keys(entries) as StorageKey[]
+
+export function isStorageData(value: unknown): value is StorageData {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+
+  const data = value as Record<string, unknown>
+
+  return STORAGE_KEYS.every(
+    (key) => Object.prototype.hasOwnProperty.call(data, key) && entries[key].check(data[key]),
+  )
+}
+
 export class StorageError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options)
