@@ -11,6 +11,7 @@ const router = useRouter()
 const route = useRoute()
 
 const isNew = route.query.new === 'true' || !hasProfile()
+const fromSettings = route.query.from === 'settings'
 const profileId = typeof route.query.id === 'string' ? route.query.id : undefined
 const existing = !isNew
   ? (profileId ? findAll().find((p) => p.id === profileId) ?? find() : find())
@@ -52,7 +53,7 @@ async function submit() {
     } else {
       save({ ...form, name: form.name.trim() }, existing?.id)
     }
-    await router.push({ name: 'dashboard' })
+    await router.push({ name: fromSettings ? 'settings' : 'dashboard' })
   } catch {
     error.value = 'Não foi possível guardar o perfil.'
   } finally {
@@ -102,8 +103,12 @@ async function submit() {
         {{ loading ? '...' : isEditing ? 'Guardar alterações' : 'Começar' }}
       </button>
 
-      <router-link v-if="hasProfile()" to="/dashboard" class="switch">
-        Cancelar e voltar à dashboard
+      <router-link
+        v-if="hasProfile()"
+        :to="fromSettings ? '/settings' : '/dashboard'"
+        class="switch"
+      >
+        {{ fromSettings ? 'Cancelar e voltar às definições' : 'Cancelar e voltar à dashboard' }}
       </router-link>
     </form>
   </main>

@@ -148,17 +148,46 @@ export function save(form: ProfileForm, id?: string): Profile {
   return updatedProfile
 }
 
-/**
- * Deletes a profile by ID. If the active profile was deleted, switches to another.
- */
-export function deleteProfile(profileId: string): void {
-  const profiles = findAll()
-  const filtered = profiles.filter((p) => p.id !== profileId)
-  saveStored('profiles', filtered)
+export type DeleteProfileResult =
+  | {
+    status: 'deleted'
+    activeProfileChanged: boolean
+    newActiveProfileId: string | null
+  }
+  | { status: 'last-profile' }
+  | { status: 'not-found' }
 
-  if (getActiveProfileId() === profileId) {
-    const nextActive = filtered[0] ?? null
-    saveStored('activeProfileId', nextActive ? nextActive.id : null)
-    saveStored('profile', nextActive)
+/**
+ * Deletes a profile by ID. The last remaining profile cannot be deleted.
+ * If the active profile is deleted, the first remaining profile becomes active.
+ */
+export function deleteProfile(profileId: string): DeleteProfileResult {
+  const profiles = findAll()
+  const target = profiles.find((p) => p.id === profileId)
+
+  if (!target) {
+    return { status: 'not-found' }
+  }
+
+  if (profiles.length === 1) {
+    return { status: 'last-profile' }
+  }
+
+  const wasActive = getActiveProfileId() === profileId
+  const nextProfiles = profiles.filter((p) => p.id !== profileId)
+  saveStored('profiles', nextProfiles)
+
+  if (!wasActive) {
+    return { status: 'deleted', activeProfileChanged: false, newActiveProfileId: null }
+  }
+
+  const nextActive = nextProfiles[0]!
+  saveStored('activeProfileId', nextActive.id)
+  saveStored('profile', nextActive)
+
+  return {
+    status: 'deleted',
+    activeProfileChanged: true,
+    newActiveProfileId: nextActive.id,
   }
 }
