@@ -4,11 +4,15 @@ import { searchRecipes, getPantryNames, type RecipeSummary } from '@/services/re
 import { getActiveProfile } from '@/services/profiles'
 import { DIETS } from '@/domain/diet'
 import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
+import SousChefModal from '@/components/SousChefModal.vue'
+import SousChefRecipeModal from '@/components/SousChefRecipeModal.vue'
 import ChoosePantrysForSearchModal from '@/components/ChoosePantrysForSearchModal.vue'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import CollectionsModal from '@/components/CollectionsModal.vue'
 import { countsByRecipe } from '@/services/preparations'
+import { useSousChef } from '@/stores/sousChef'
 import type { RecipeReference } from '@/types/bookmark'
+import type { SousChefResponse } from '@/types/sousChef'
 
 const rawRecipes = ref<RecipeSummary[]>([])
 const query = ref('')
@@ -17,6 +21,9 @@ const error = ref('')
 const selectedRecipeId = ref<number | null>(null)
 const pickerRecipe = ref<RecipeReference | null>(null)
 const showIngredientsModal = ref(false)
+const showSousChefModal = ref(false)
+const sousChefResponse = ref<SousChefResponse | null>(null)
+const { setLastResponse } = useSousChef()
 const ingredients = ref<string[]>([])
 const activeProfile = ref(getActiveProfile())
 const sortBy = ref<'expiring' | 'overlap' | 'missing' | 'name'>('expiring')
@@ -28,6 +35,12 @@ function refreshPreparations() {
 
 function countFor(recipeId: number): number {
     return preparationCounts.value.get(recipeId) ?? 0
+}
+
+function onSousChefGenerated(response: SousChefResponse) {
+    setLastResponse(response)
+    sousChefResponse.value = response
+    showSousChefModal.value = false
 }
 
 function closeRecipe() {
@@ -150,9 +163,14 @@ async function clearIngredients() {
             <button type="submit" class="btn-submit" :disabled="loading">Pesquisar</button>
         </form>
 
-        <button type="button" class="btn-submit" :disabled="loading" @click="showIngredientsModal = true">
-            Select items
-        </button>
+        <div class="action-row">
+            <button type="button" class="btn-submit" :disabled="loading" @click="showIngredientsModal = true">
+                Select items
+            </button>
+            <button type="button" class="btn-submit" :disabled="loading" @click="showSousChefModal = true">
+                Sous-Chef (IA)
+            </button>
+        </div>
 
         <div v-if="ingredients.length > 0" class="selected-chips">
             <button v-for="name in ingredients" :key="name" type="button" class="chip" :disabled="loading"
@@ -228,6 +246,12 @@ async function clearIngredients() {
 
         <RecipeDetailModal v-if="selectedRecipeId !== null" :recipe-id="selectedRecipeId"
             @close="closeRecipe" />
+
+        <SousChefModal v-if="showSousChefModal" @close="showSousChefModal = false"
+            @generated="onSousChefGenerated" />
+
+        <SousChefRecipeModal v-if="sousChefResponse" :response="sousChefResponse"
+            @close="sousChefResponse = null" />
     </main>
 </template>
 
@@ -286,6 +310,12 @@ async function clearIngredients() {
     border: none;
     border-radius: 6px;
     cursor: pointer;
+}
+
+.action-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
 }
 
 .btn-submit:disabled {

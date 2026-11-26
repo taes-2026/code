@@ -51,6 +51,13 @@ function buildHighlightPattern(recipe: RecipeDetails): RegExp | null {
 export function stripHtml(html: string | null | undefined): string {
   if (!html) return ''
 
+  if (typeof DOMParser === 'undefined') {
+    return html
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
   return new DOMParser().parseFromString(html, 'text/html').body.textContent?.trim() ?? ''
 }
 
@@ -111,16 +118,21 @@ export function detectTimedActions(text: string): TimedAction[] {
 export function buildCookingSteps(recipe: RecipeDetails): CookingStep[] {
   const highlightPattern = buildHighlightPattern(recipe)
   const analyzed = (recipe.analyzedInstructions ?? []).flatMap((group) => group.steps ?? [])
-  const sources: (string | null)[] =
-    analyzed.length > 0 ? analyzed.map((step) => step.step) : [recipe.instructions]
+  const sources: { text: string | null; timerSeconds?: number }[] =
+    analyzed.length > 0
+      ? analyzed.map((step) => ({ text: step.step, timerSeconds: step.timerSeconds }))
+      : [{ text: recipe.instructions }]
 
   return sources
-    .map((source) => stripHtml(source))
-    .filter((text) => text.length > 0)
-    .map((text) => ({
-      text,
-      segments: buildSegments(text, highlightPattern),
-      ingredients: ingredientsInStep(text, recipe),
-      timedActions: detectTimedActions(text),
+    .map((source) => ({ ...source, text: stripHtml(source.text) }))
+    .filter((source) => source.text.length > 0)
+    .map((source) => ({
+      text: source.text,
+      segments: buildSegments(source.text, highlightPattern),
+      ingredients: ingredientsInStep(source.text, recipe),
+      timedActions:
+        source.timerSeconds && source.timerSeconds > 0
+          ? [{ seconds: source.timerSeconds, label: formatDuration(source.timerSeconds) }]
+          : detectTimedActions(source.text),
     }))
 }

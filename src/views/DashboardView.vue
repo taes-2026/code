@@ -6,6 +6,8 @@ import { CATEGORIES, UNITS } from '@/domain/items'
 import { DIETS } from '@/domain/diet'
 import { findAll as findAllProfiles, getActiveProfile, switchProfile } from '@/services/profiles'
 import { findAll, subscribe } from '@/services/items'
+import { exportAppData } from '@/services/export'
+import { importAppData } from '@/services/import'
 import type { InventoryItem } from '@/types/item'
 import type { Profile } from '@/types/profile'
 
@@ -14,6 +16,11 @@ const profiles = ref<Profile[]>(findAllProfiles())
 const profile = ref<Profile | null>(getActiveProfile())
 const items = ref<InventoryItem[]>(findAll())
 const now = ref(new Date())
+const exportMessage = ref('')
+const exportError = ref('')
+const importInput = ref<HTMLInputElement | null>(null)
+const importMessage = ref('')
+const importError = ref('')
 
 let unsubscribe: (() => void) | undefined
 let clock: ReturnType<typeof setInterval> | undefined
@@ -66,6 +73,46 @@ function bookmarks() {
 function shoppingList() {
   router.push({ name: 'shopping-list' })
 }
+
+function onExport() {
+  try {
+    const filename = exportAppData()
+    exportMessage.value = `Dados exportados para ${filename}.`
+    exportError.value = ''
+  } catch (error) {
+    exportMessage.value = ''
+    exportError.value =
+      error instanceof Error ? error.message : 'Não foi possível exportar os dados.'
+  }
+}
+
+function chooseImportFile() {
+  importInput.value?.click()
+}
+
+async function onImport(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+
+  if (!file) return
+
+  importMessage.value = ''
+  importError.value = ''
+
+  if (!window.confirm('Importar dados substitui todos os dados atuais. Continuar?')) return
+
+  try {
+    importAppData(await file.text())
+    exportMessage.value = ''
+    exportError.value = ''
+    importMessage.value = `Dados importados de ${file.name}.`
+    window.location.reload()
+  } catch (error) {
+    importError.value =
+      error instanceof Error ? error.message : 'Não foi possível importar os dados.'
+  }
+}
 </script>
 
 <template>
@@ -102,7 +149,21 @@ function shoppingList() {
         <button class="recipe" @click="recipies">Procurar receitas</button>
         <button class="recipe" @click="bookmarks">Receitas guardadas</button>
         <button class="shopping" @click="shoppingList">Lista de compras</button>
+        <button class="secondary" @click="onExport">Exportar dados</button>
+        <input
+          ref="importInput"
+          class="file-input"
+          type="file"
+          accept="application/json,.json"
+          @change="onImport"
+        />
+        <button class="secondary" @click="chooseImportFile">Importar dados</button>
       </div>
+
+      <p v-if="exportMessage" class="export-message" role="status">{{ exportMessage }}</p>
+      <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
+      <p v-if="importMessage" class="import-message" role="status">{{ importMessage }}</p>
+      <p v-if="importError" class="error" role="alert">{{ importError }}</p>
 
       <h2>Dispensa</h2>
       <p v-if="items.length === 0">Sem comida na sua dispensa</p>
@@ -208,6 +269,17 @@ main {
 
 .error {
   color: var(--color-error);
+}
+
+.export-message,
+.import-message {
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.file-input {
+  display: none;
 }
 
 table {

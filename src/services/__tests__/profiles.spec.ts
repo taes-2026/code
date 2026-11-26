@@ -1,7 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { find, save } from '@/lib/storage'
-import { deleteProfile } from '@/services/profiles'
-import type { Profile } from '@/types/profile'
+import {
+  ProfileNotFoundError,
+  deleteProfile,
+  findById,
+  save as saveProfile,
+} from '@/services/profiles'
+import type { Profile, ProfileForm } from '@/types/profile'
 
 vi.mock('@/lib/storage', () => ({
   find: vi.fn(),
@@ -38,6 +43,139 @@ function useStorage(initial: Record<string, unknown>) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+function makeForm(overrides: Partial<ProfileForm> = {}): ProfileForm {
+  return {
+    name: 'Perfil atualizado',
+    diet: 'vegan',
+    intolerances: ['gluten'],
+    restrictions: ['pork'],
+    ...overrides,
+  }
+}
+
+describe('findById', () => {
+  it('devolve o perfil com o id indicado', () => {
+    const active = makeProfile('a')
+    const other = makeProfile('b')
+    useStorage({
+      profiles: [active, other],
+      activeProfileId: active.id,
+      profile: active,
+    })
+
+    expect(findById(other.id)).toEqual(other)
+  })
+
+  it('devolve null quando o id não existe', () => {
+    const active = makeProfile('a')
+    useStorage({
+      profiles: [active],
+      activeProfileId: active.id,
+      profile: active,
+    })
+
+    expect(findById('missing')).toBeNull()
+  })
+})
+
+describe('save', () => {
+  it('atualiza o perfil ativo mantendo o id e a data de criação', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-01T10:00:00.000Z'))
+
+    const active = makeProfile('a')
+    const other = makeProfile('b')
+    const state = useStorage({
+      profiles: [active, other],
+      activeProfileId: active.id,
+      profile: active,
+    })
+
+    const updated = saveProfile(makeForm({ name: 'Casa' }), active.id)
+
+    expect(updated).toEqual({
+      id: active.id,
+      name: 'Casa',
+      diet: 'vegan',
+      intolerances: ['gluten'],
+      restrictions: ['pork'],
+      createdAt: active.createdAt,
+      updatedAt: '2026-02-01T10:00:00.000Z',
+    })
+    expect(state.profiles).toEqual([updated, other])
+    expect(state.activeProfileId).toBe(active.id)
+    expect(state.profile).toEqual(updated)
+  })
+
+  it('atualiza um perfil não ativo sem alterar o perfil ativo', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-01T10:00:00.000Z'))
+
+    const active = makeProfile('a')
+    const other = makeProfile('b')
+    const state = useStorage({
+      profiles: [active, other],
+      activeProfileId: active.id,
+      profile: active,
+    })
+
+    const updated = saveProfile(makeForm({ name: 'Casa de praia' }), other.id)
+
+    expect(state.profiles).toEqual([active, updated])
+    expect(state.activeProfileId).toBe(active.id)
+    expect(state.profile).toEqual(active)
+    expect(vi.mocked(save).mock.calls.map(([key]) => key)).toEqual(['profiles'])
+  })
+
+  it('atualiza o perfil ativo quando não é indicado um id', () => {
+    const active = makeProfile('a')
+    const state = useStorage({
+      profiles: [active],
+      activeProfileId: active.id,
+      profile: active,
+    })
+
+    const updated = saveProfile(makeForm())
+
+    expect(updated.id).toBe(active.id)
+    expect(state.profiles).toEqual([updated])
+    expect(state.profile).toEqual(updated)
+  })
+
+  it('lança erro e não guarda nada quando o id indicado não existe', () => {
+    const active = makeProfile('a')
+    const state = useStorage({
+      profiles: [active],
+      activeProfileId: active.id,
+      profile: active,
+    })
+
+    expect(() => saveProfile(makeForm(), 'missing')).toThrow(ProfileNotFoundError)
+    expect(state.profiles).toEqual([active])
+    expect(state.profile).toEqual(active)
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('cria um perfil quando ainda não existe nenhum', () => {
+    const state = useStorage({
+      profiles: [],
+      activeProfileId: null,
+      profile: null,
+    })
+
+    const created = saveProfile(makeForm())
+
+    expect(created.id).toBeTruthy()
+    expect(state.profiles).toEqual([created])
+    expect(state.activeProfileId).toBe(created.id)
+    expect(state.profile).toEqual(created)
+  })
 })
 
 describe('deleteProfile', () => {
