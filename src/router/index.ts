@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { hasProfile } from '@/services/profiles'
 import SetupView from '@/views/SetupView.vue'
 import DashboardView from '@/views/DashboardView.vue'
+import SettingsView from '@/views/SettingsView.vue'
 import ProductEntryView from '@/views/ProductEntryView.vue'
 import ManualEntryView from '@/views/ManualEntryView.vue'
 import CategoryEntryView from '@/views/CategoryEntryView.vue'
@@ -15,6 +16,7 @@ const router = createRouter({
     { path: '/', redirect: '/dashboard' },
     { path: '/setup', name: 'setup', component: SetupView },
     { path: '/dashboard', name: 'dashboard', component: DashboardView },
+    { path: '/settings', name: 'settings', component: SettingsView },
     { path: '/items/new', name: 'product-entry', component: ProductEntryView },
     { path: '/items/new/manual', name: 'manual-entry', component: ManualEntryView },
     { path: '/items/new', name: 'category-entry', component: CategoryEntryView},

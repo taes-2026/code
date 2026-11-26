@@ -43,16 +43,8 @@ function onSwitchProfile(event: Event) {
   profile.value = switched
 }
 
-function newProfile() {
-  router.push({ name: 'setup', query: { new: 'true' } })
-}
-
-function editProfile() {
-  if (profile.value) {
-    router.push({ name: 'setup', query: { id: profile.value.id } })
-  } else {
-    router.push({ name: 'setup' })
-  }
+function settings() {
+  router.push({ name: 'settings' })
 }
 
 function addProduct() {
@@ -92,8 +84,7 @@ function shoppingList() {
             {{ p.name }} ({{ DIETS[p.diet] ?? p.diet }})
           </option>
         </select>
-        <button class="secondary btn-profile" @click="newProfile">+ Novo</button>
-        <button class="secondary btn-profile" @click="editProfile">Editar</button>
+        <button class="secondary btn-profile" @click="settings">Definições</button>
       </div>
     </header>
 
