@@ -177,6 +177,7 @@ export interface RecipeIngredient {
 export interface RecipeStep {
   number: number
   step: string
+  timerSeconds?: number
 }
 
 export interface NutrientInfo {

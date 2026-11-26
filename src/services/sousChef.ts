@@ -1,5 +1,7 @@
+import { formatQuantity, unitLabel } from '@/domain/sousChef'
 import { findAll } from '@/services/items'
 import { getActiveProfile } from '@/services/profiles'
+import { cacheRecipe, type RecipeDetails } from '@/services/recipes'
 import type { InventoryItem } from '@/types/item'
 import type {
   SousChefErrorBody,
@@ -66,6 +68,7 @@ export async function generateRecipe(
   selected: InventoryItem[],
   servings: number,
   options: { maxMinutes?: number; notes?: string } = {},
+  signal?: AbortSignal,
 ): Promise<SousChefResponse> {
   const request = buildRequest(selected, servings, options)
 
@@ -76,8 +79,10 @@ export async function generateRecipe(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(request),
+      signal,
     })
-  } catch {
+  } catch (cause) {
+    if (signal?.aborted) throw cause
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       throw new Error('Sem ligação à internet. Não é possível gerar receitas novas offline.')
     }
@@ -98,4 +103,76 @@ export async function generateRecipe(
   }
 
   return body
+}
+
+const AI_RECIPE_IMAGE =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="16" fill="#e8f2ec"/><rect x="34" y="50" width="60" height="34" rx="6" fill="#198754"/><rect x="30" y="44" width="68" height="10" rx="5" fill="#146c43"/><rect x="58" y="84" width="12" height="10" fill="#198754"/><rect x="46" y="94" width="36" height="6" rx="3" fill="#146c43"/></svg>',
+  )
+
+function numericId(value: string): number {
+  let hash = 0
+
+  for (const char of value) {
+    hash = (hash * 31 + char.charCodeAt(0)) | 0
+  }
+
+  return Math.abs(hash) || 1
+}
+
+export function toRecipeDetails(response: SousChefResponse): RecipeDetails {
+  const recipe = response.recipe
+  const details: RecipeDetails = {
+    id: numericId(response.id),
+    title: recipe.title,
+    image: AI_RECIPE_IMAGE,
+    servings: recipe.servings,
+    readyInMinutes: recipe.prepMinutes + recipe.cookMinutes,
+    preparationMinutes: recipe.prepMinutes,
+    cookingMinutes: recipe.cookMinutes,
+    healthScore: 0,
+    pricePerServing: 0,
+    sourceName: 'GenAI Sous-Chef',
+    sourceUrl: null,
+    creditsText: null,
+    summary: recipe.summary,
+    instructions: recipe.steps.map((step) => step.text).join('\n'),
+    cuisines: [],
+    dishTypes: [],
+    diets: [],
+    vegetarian: false,
+    vegan: false,
+    glutenFree: false,
+    dairyFree: false,
+    veryHealthy: false,
+    cheap: false,
+    veryPopular: false,
+    extendedIngredients: recipe.ingredients.map((ingredient, index) => ({
+      id: index + 1,
+      name: ingredient.name,
+      original: `${formatQuantity(ingredient.quantity)} ${unitLabel(ingredient.unit)}`,
+      amount: ingredient.quantity,
+      unit: ingredient.unit,
+      image: '',
+    })),
+    analyzedInstructions: [
+      {
+        name: '',
+        steps: recipe.steps.map((step) => ({
+          number: step.n,
+          step: step.text,
+          ...(step.timerSeconds ? { timerSeconds: step.timerSeconds } : {}),
+        })),
+      },
+    ],
+  }
+
+  try {
+    cacheRecipe(details)
+  } catch (error) {
+    console.error('[sousChef] não foi possível guardar a receita gerada', error)
+  }
+
+  return details
 }

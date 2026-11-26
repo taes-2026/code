@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { compareByExpiration, formatExpirationDate, getExpirationState } from '@/domain/expiration'
-import { generateRecipe } from '@/services/sousChef'
+import { GENERATION_STEPS, generationStep } from '@/domain/sousChef'
 import { findAll } from '@/services/items'
+import { generateRecipe } from '@/services/sousChef'
 import type { InventoryItem } from '@/types/item'
 import type { SousChefResponse } from '@/types/sousChef'
 
@@ -17,14 +18,18 @@ const servings = ref(2)
 const maxMinutes = ref<number | null>(null)
 const generating = ref(false)
 const error = ref('')
-const result = ref<SousChefResponse | null>(null)
+const elapsed = ref(0)
 const now = new Date()
+
+let ticker: ReturnType<typeof setInterval> | null = null
+let controller: AbortController | null = null
 
 const sortedItems = computed(() => [...items.value].sort(compareByExpiration))
 const selectedCount = computed(() => selectedIds.value.size)
 const allSelected = computed(
   () => items.value.length > 0 && selectedIds.value.size === items.value.length,
 )
+const currentStep = computed(() => generationStep(elapsed.value))
 
 function toggle(id: string) {
   const selection = selectedIds.value
@@ -33,6 +38,21 @@ function toggle(id: string) {
 
 function toggleAll() {
   selectedIds.value = allSelected.value ? new Set() : new Set(items.value.map((item) => item.id))
+}
+
+function stopTicker() {
+  if (ticker !== null) {
+    clearInterval(ticker)
+    ticker = null
+  }
+}
+
+function startTicker() {
+  stopTicker()
+  elapsed.value = 0
+  ticker = setInterval(() => {
+    elapsed.value += 1
+  }, 1000)
 }
 
 async function generate() {
@@ -44,24 +64,34 @@ async function generate() {
   }
 
   const minutes = Number(maxMinutes.value)
+  controller = new AbortController()
   generating.value = true
   error.value = ''
+  startTicker()
 
   try {
-    const response = await generateRecipe(selected, servings.value, {
-      maxMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : undefined,
-    })
-    result.value = response
+    const response = await generateRecipe(
+      selected,
+      servings.value,
+      { maxMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : undefined },
+      controller.signal,
+    )
     emit('generated', response)
   } catch (cause) {
+    if (controller?.signal.aborted) return
     error.value = cause instanceof Error ? cause.message : 'Não foi possível gerar a receita.'
   } finally {
     generating.value = false
+    stopTicker()
   }
 }
 
+function close() {
+  if (!generating.value) emit('close')
+}
+
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') emit('close')
+  if (event.key === 'Escape') close()
 }
 
 onMounted(() => {
@@ -70,24 +100,40 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  stopTicker()
+  controller?.abort()
   document.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = ''
 })
 </script>
 
 <template>
-  <div class="overlay" @click.self="emit('close')">
+  <div class="overlay" @click.self="close">
     <div class="modal" role="dialog" aria-modal="true" aria-label="Sous-Chef">
       <header class="header">
         <h2>Sous-Chef</h2>
-        <button class="close-btn" aria-label="Fechar" @click="emit('close')">×</button>
+        <button class="close-btn" aria-label="Fechar" :disabled="generating" @click="close">
+          ×
+        </button>
       </header>
 
-      <div v-if="result" class="result">
-        <p class="success">
-          Receita gerada: <strong>{{ result.recipe.title }}</strong>
-        </p>
-        <p class="hint">Detalhes disponíveis em breve.</p>
+      <div v-if="generating" class="generating" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="generating-title">A preparar a tua receita…</p>
+        <p class="generating-time">{{ elapsed }} s</p>
+
+        <ul class="generation-steps">
+          <li
+            v-for="(label, index) in GENERATION_STEPS"
+            :key="label"
+            :class="{ done: index < currentStep, active: index === currentStep }"
+          >
+            <span class="dot" aria-hidden="true"></span>
+            {{ label }}
+          </li>
+        </ul>
+
+        <p class="generating-hint">Pode demorar até 25 segundos. Não feches esta janela.</p>
       </div>
 
       <template v-else>
@@ -142,16 +188,14 @@ onBeforeUnmount(() => {
       </template>
 
       <footer class="footer">
-        <button class="btn btn-secondary" @click="emit('close')">
-          {{ result ? 'Fechar' : 'Cancelar' }}
-        </button>
+        <button class="btn btn-secondary" :disabled="generating" @click="close">Cancelar</button>
         <button
-          v-if="!result"
+          v-if="!generating"
           class="btn btn-primary"
-          :disabled="generating || selectedCount === 0"
+          :disabled="selectedCount === 0"
           @click="generate"
         >
-          {{ generating ? 'A gerar...' : 'Gerar receita' }}
+          Gerar receita
         </button>
       </footer>
     </div>
@@ -207,8 +251,13 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.close-btn:hover {
+.close-btn:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.08);
+}
+
+.close-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .intro {
@@ -302,22 +351,6 @@ onBeforeUnmount(() => {
   border-radius: 6px;
 }
 
-.result {
-  padding: 24px 20px;
-  text-align: center;
-}
-
-.success {
-  margin: 0 0 8px;
-  font-size: 1rem;
-}
-
-.hint {
-  margin: 0;
-  color: #666;
-  font-size: 0.9rem;
-}
-
 .status {
   text-align: center;
   padding: 40px 16px;
@@ -329,6 +362,103 @@ onBeforeUnmount(() => {
   padding: 12px 20px;
   color: #dc3545;
   font-size: 0.9rem;
+}
+
+.generating {
+  padding: 24px 20px 8px;
+  text-align: center;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 14px;
+  border: 3px solid rgba(25, 135, 84, 0.18);
+  border-top-color: #198754;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.generating-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.generating-time {
+  margin: 4px 0 16px;
+  font-variant-numeric: tabular-nums;
+  color: #198754;
+  font-weight: 600;
+}
+
+.generation-steps {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 320px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.generation-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #9aa0a6;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.generation-steps li.active {
+  background: rgba(25, 135, 84, 0.1);
+  color: #146c43;
+  font-weight: 600;
+}
+
+.generation-steps li.done {
+  color: #198754;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.generation-steps li.active .dot {
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.45;
+  }
+}
+
+.generating-hint {
+  margin: 16px 0 8px;
+  font-size: 0.8rem;
+  color: #888;
 }
 
 .footer {
@@ -360,5 +490,10 @@ onBeforeUnmount(() => {
 .btn-secondary {
   background: #e9ecef;
   color: #333;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

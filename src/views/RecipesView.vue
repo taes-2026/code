@@ -5,6 +5,7 @@ import { getActiveProfile } from '@/services/profiles'
 import { DIETS } from '@/domain/diet'
 import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
 import SousChefModal from '@/components/SousChefModal.vue'
+import SousChefRecipeModal from '@/components/SousChefRecipeModal.vue'
 import ChoosePantrysForSearchModal from '@/components/ChoosePantrysForSearchModal.vue'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import CollectionsModal from '@/components/CollectionsModal.vue'
@@ -21,6 +22,7 @@ const selectedRecipeId = ref<number | null>(null)
 const pickerRecipe = ref<RecipeReference | null>(null)
 const showIngredientsModal = ref(false)
 const showSousChefModal = ref(false)
+const sousChefResponse = ref<SousChefResponse | null>(null)
 const { setLastResponse } = useSousChef()
 const ingredients = ref<string[]>([])
 const activeProfile = ref(getActiveProfile())
@@ -37,6 +39,8 @@ function countFor(recipeId: number): number {
 
 function onSousChefGenerated(response: SousChefResponse) {
     setLastResponse(response)
+    sousChefResponse.value = response
+    showSousChefModal.value = false
 }
 
 function closeRecipe() {
@@ -245,6 +249,9 @@ async function clearIngredients() {
 
         <SousChefModal v-if="showSousChefModal" @close="showSousChefModal = false"
             @generated="onSousChefGenerated" />
+
+        <SousChefRecipeModal v-if="sousChefResponse" :response="sousChefResponse"
+            @close="sousChefResponse = null" />
     </main>
 </template>
 
