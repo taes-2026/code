@@ -4,34 +4,37 @@ import '@/assets/setup.css'
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { INTOLERANCES, DIETS, RESTRICTIONS } from '@/domain/diet'
-import { create, findAll, find, hasProfile, save } from '@/services/profiles'
+import { create, findById, getActiveProfile, hasProfile, save } from '@/services/profiles'
 import type { ProfileForm } from '@/types/profile'
 
 const router = useRouter()
 const route = useRoute()
 
-const isNew = route.query.new === 'true' || !hasProfile()
+const isNewProfile = route.query.new === 'true' || !hasProfile()
 const fromSettings = route.query.from === 'settings'
-const profileId = typeof route.query.id === 'string' ? route.query.id : undefined
-const existing = !isNew
-  ? (profileId ? findAll().find((p) => p.id === profileId) ?? find() : find())
-  : null
+const requestedProfileId = typeof route.query.id === 'string' ? route.query.id : undefined
+const existing = isNewProfile
+  ? null
+  : requestedProfileId
+    ? findById(requestedProfileId)
+    : getActiveProfile()
 const isEditing = existing !== null
+const profileNotFound = !isNewProfile && requestedProfileId !== undefined && existing === null
 
 const form = reactive<ProfileForm>(
   existing
     ? {
-      name: existing.name,
-      diet: existing.diet,
-      intolerances: [...existing.intolerances],
-      restrictions: [...existing.restrictions],
-    }
+        name: existing.name,
+        diet: existing.diet,
+        intolerances: [...existing.intolerances],
+        restrictions: [...existing.restrictions],
+      }
     : {
-      name: '',
-      diet: 'omnivore',
-      intolerances: [],
-      restrictions: [],
-    },
+        name: '',
+        diet: 'omnivore',
+        intolerances: [],
+        restrictions: [],
+      },
 )
 const error = ref('')
 const loading = ref(false)
@@ -48,12 +51,20 @@ async function submit() {
   loading.value = true
 
   try {
-    if (isNew) {
+    if (isNewProfile) {
       create({ ...form, name: form.name.trim() }, true)
-    } else {
-      save({ ...form, name: form.name.trim() }, existing?.id)
+    } else if (existing) {
+      save({ ...form, name: form.name.trim() }, existing.id)
     }
-    await router.push({ name: fromSettings ? 'settings' : 'dashboard' })
+
+    if (fromSettings) {
+      await router.push({
+        name: 'settings',
+        query: isEditing ? { updated: 'true' } : {},
+      })
+    } else {
+      await router.push({ name: 'dashboard' })
+    }
   } catch {
     error.value = 'Não foi possível guardar o perfil.'
   } finally {
@@ -64,52 +75,62 @@ async function submit() {
 
 <template>
   <main class="auth setup">
-    <h1>{{ isEditing ? 'Editar perfil' : 'Novo perfil' }}</h1>
-
-    <form @submit.prevent="submit">
-      <label>
-        Nome do perfil
-        <input v-model.trim="form.name" type="text" autocomplete="name" maxlength="80" required />
-      </label>
-
-      <label>
-        Dieta
-        <select v-model="form.diet" required>
-          <option v-for="(label, id) in DIETS" :key="id" :value="id">
-            {{ label }}
-          </option>
-        </select>
-      </label>
-
-      <fieldset>
-        <legend>Intolerâncias</legend>
-        <label v-for="(label, id) in INTOLERANCES" :key="id" class="check">
-          <input v-model="form.intolerances" type="checkbox" :value="id" />
-          {{ label }}
-        </label>
-      </fieldset>
-
-      <fieldset>
-        <legend>Restrições</legend>
-        <label v-for="(label, id) in RESTRICTIONS" :key="id" class="check">
-          <input v-model="form.restrictions" type="checkbox" :value="id" />
-          {{ label }}
-        </label>
-      </fieldset>
-
-      <p v-if="error" class="error">{{ error }}</p>
-
-      <button type="submit" :disabled="loading">
-        {{ loading ? '...' : isEditing ? 'Guardar alterações' : 'Começar' }}
-      </button>
-
-      <router-link
-        v-if="hasProfile()"
-        :to="fromSettings ? '/settings' : '/dashboard'"
-        class="switch"
-      >
-        {{ fromSettings ? 'Cancelar e voltar às definições' : 'Cancelar e voltar à dashboard' }}
+    <template v-if="profileNotFound">
+      <h1>Perfil não encontrado</h1>
+      <p class="error" role="alert">O perfil que tentaste editar já não existe.</p>
+      <router-link :to="fromSettings ? '/settings' : '/dashboard'" class="switch">
+        Voltar
       </router-link>
-    </form>
+    </template>
+
+    <template v-else>
+      <h1>{{ isEditing ? 'Editar perfil' : 'Novo perfil' }}</h1>
+
+      <form @submit.prevent="submit">
+        <label>
+          Nome do perfil
+          <input v-model.trim="form.name" type="text" autocomplete="name" maxlength="80" required />
+        </label>
+
+        <label>
+          Dieta
+          <select v-model="form.diet" required>
+            <option v-for="(label, id) in DIETS" :key="id" :value="id">
+              {{ label }}
+            </option>
+          </select>
+        </label>
+
+        <fieldset>
+          <legend>Intolerâncias</legend>
+          <label v-for="(label, id) in INTOLERANCES" :key="id" class="check">
+            <input v-model="form.intolerances" type="checkbox" :value="id" />
+            {{ label }}
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Restrições</legend>
+          <label v-for="(label, id) in RESTRICTIONS" :key="id" class="check">
+            <input v-model="form.restrictions" type="checkbox" :value="id" />
+            {{ label }}
+          </label>
+        </fieldset>
+
+        <p v-if="error" class="error">{{ error }}</p>
+
+        <button type="submit" :disabled="loading">
+          {{ loading ? '...' : isEditing ? 'Guardar alterações' : 'Começar' }}
+        </button>
+
+        <router-link
+          v-if="hasProfile()"
+          :to="fromSettings ? '/settings' : '/dashboard'"
+          class="switch"
+        >
+          {{ fromSettings ? 'Cancelar e voltar às definições' : 'Cancelar e voltar à dashboard' }}
+        </router-link>
+      </form>
+    </template>
   </main>
 </template>

@@ -51,12 +51,19 @@ export function getActiveProfileId(): string | null {
 }
 
 /**
+ * Returns the profile with the given ID, or null if it does not exist.
+ */
+export function findById(profileId: string): Profile | null {
+  return findAll().find((p) => p.id === profileId) ?? null
+}
+
+/**
  * Returns the currently active profile.
  */
 export function getActiveProfile(): Profile | null {
   const id = getActiveProfileId()
   if (!id) return null
-  return findAll().find((p) => p.id === id) ?? null
+  return findById(id)
 }
 
 /**
@@ -115,26 +122,41 @@ export function create(form: ProfileForm, setAsActive = true): Profile {
   return newProfile
 }
 
+export class ProfileNotFoundError extends Error {
+  constructor(profileId: string) {
+    super(`Perfil com o ID "${profileId}" não encontrado.`)
+    this.name = 'ProfileNotFoundError'
+  }
+}
+
 /**
  * Saves/updates a profile.
  * If an ID is provided, updates that profile;
  * otherwise updates the active profile, or creates a new one if none exists.
+ *
+ * Throws {@link ProfileNotFoundError} when an explicit ID does not match any
+ * stored profile, so an edit never silently creates or drops a profile.
  */
 export function save(form: ProfileForm, id?: string): Profile {
   const profiles = findAll()
   const targetId = id ?? getActiveProfileId()
 
-  if (!targetId || profiles.length === 0) {
+  if (!targetId) {
     return create(form, true)
   }
 
   const existing = profiles.find((p) => p.id === targetId)
+
+  if (!existing) {
+    throw new ProfileNotFoundError(targetId)
+  }
+
   const now = new Date().toISOString()
 
   const updatedProfile: Profile = {
     ...form,
     id: targetId,
-    createdAt: existing?.createdAt ?? now,
+    createdAt: existing.createdAt,
     updatedAt: now,
   }
 

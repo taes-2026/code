@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { DIETS } from '@/domain/diet'
 import { deleteProfile, findAll, getActiveProfileId } from '@/services/profiles'
 import type { Profile } from '@/types/profile'
 
 const router = useRouter()
+const route = useRoute()
 const profiles = ref<Profile[]>(findAll())
 const activeProfileId = ref<string | null>(getActiveProfileId())
-const message = ref('')
+const message = ref(route.query.updated === 'true' ? 'Perfil atualizado com sucesso.' : '')
+
+onMounted(() => {
+  if (route.query.updated === 'true') {
+    router.replace({ name: 'settings' })
+  }
+})
 
 function refresh() {
   profiles.value = findAll()
