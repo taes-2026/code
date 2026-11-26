@@ -65,6 +65,7 @@ async function submit() {
     } else {
       await router.push({ name: 'dashboard' })
     }
+    await router.push({ name: 'dashboard' })
   } catch {
     error.value = 'Não foi possível guardar o perfil.'
   } finally {
