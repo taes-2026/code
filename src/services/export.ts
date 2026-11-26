@@ -1,9 +1,10 @@
 import { readAll, type StorageData } from '@/lib/storage'
 
 export const EXPORT_VERSION = 1
+export const APP_IDENTIFIER = 'smartpantry'
 
 export type AppDataExport = {
-  app: 'smartpantry'
+  app: typeof APP_IDENTIFIER
   version: number
   exportedAt: string
   data: StorageData
@@ -11,7 +12,7 @@ export type AppDataExport = {
 
 export function buildAppDataExport(now: Date = new Date()): AppDataExport {
   return {
-    app: 'smartpantry',
+    app: APP_IDENTIFIER,
     version: EXPORT_VERSION,
     exportedAt: now.toISOString(),
     data: readAll(),
