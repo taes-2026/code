@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { buildCookingSteps, type TimedAction } from '@/domain/cooking'
+import {
+  buildConsumedQuantityRows,
+  toConsumedQuantities,
+  type ConsumedQuantityRow,
+} from '@/domain/consumption'
 import { buildPantryIndex, hasIngredient } from '@/domain/pantry'
 import { formatClock } from '@/domain/timers'
 import { useTimers } from '@/composables/useTimers'
@@ -8,6 +13,7 @@ import { useBookmarks } from '@/stores/bookmarks'
 import { findAll as findAllItems, subscribe as subscribeItems } from '@/services/items'
 import { recordPreparation, statsFor } from '@/services/preparations'
 import { updatePantryAfterMeal, type ConsumedIngredient } from '@/services/pantry'
+import ConsumedQuantitiesDialog from '@/components/ConsumedQuantitiesDialog.vue'
 import MealSummary from '@/components/MealSummary.vue'
 import TimerAlert from '@/components/TimerAlert.vue'
 import type { RecipeDetails, RecipeIngredient } from '@/services/recipes'
@@ -31,6 +37,8 @@ const pantryIndex = computed(() => buildPantryIndex(pantry.value))
 const notUpdatedIngredients = ref<ConsumedIngredient[]>([])
 const pantryUpdateFailed = ref(false)
 const removedSummary = ref('')
+const adjustingQuantities = ref(false)
+const consumedRows = ref<ConsumedQuantityRow[]>([])
 
 function isMissing(ingredient: RecipeIngredient): boolean {
   return !hasIngredient(pantryIndex.value, ingredient.name || ingredient.original)
@@ -60,7 +68,19 @@ function previous() {
   if (current.value > 0) current.value -= 1
 }
 
-function finish() {
+function startFinish() {
+  if (completed.value) return
+
+  consumedRows.value = buildConsumedQuantityRows(props.recipe.extendedIngredients, pantry.value)
+  adjustingQuantities.value = true
+}
+
+function confirmConsumedQuantities(rows: ConsumedQuantityRow[]) {
+  adjustingQuantities.value = false
+  finish(rows)
+}
+
+function finish(rows: readonly ConsumedQuantityRow[]) {
   if (completed.value) return
 
   try {
@@ -70,13 +90,7 @@ function finish() {
   }
 
   try {
-    const { items, removed, notUpdated } = updatePantryAfterMeal(
-      props.recipe.extendedIngredients.map(({ name, amount, unit }) => ({
-        name,
-        amount,
-        unit,
-      })),
-    )
+    const { items, removed, notUpdated } = updatePantryAfterMeal(toConsumedQuantities(rows))
 
     pantry.value = items
     notUpdatedIngredients.value = notUpdated
@@ -125,6 +139,8 @@ function onTouchEnd(event: TouchEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  if (adjustingQuantities.value) return
+
   if (event.key === 'Escape') {
     emit('close')
   } else if (event.key === 'ArrowRight') {
@@ -368,10 +384,20 @@ onBeforeUnmount(() => {
           <span class="position">{{ current + 1 }} / {{ steps.length }}</span>
 
           <button v-if="!isLast" type="button" class="nav primary" @click="next">Seguinte →</button>
-          <button v-else type="button" class="nav primary" @click="finish">Concluir refeição</button>
+          <button v-else type="button" class="nav primary" @click="startFinish">
+            Concluir refeição
+          </button>
         </footer>
       </template>
     </div>
+
+    <ConsumedQuantitiesDialog
+      v-if="adjustingQuantities"
+      :rows="consumedRows"
+      :title="recipe.title"
+      @confirm="confirmConsumedQuantities"
+      @cancel="adjustingQuantities = false"
+    />
   </div>
 </template>
 

@@ -57,15 +57,11 @@ async function submit() {
       save({ ...form, name: form.name.trim() }, existing.id)
     }
 
-    if (fromSettings) {
-      await router.push({
-        name: 'settings',
-        query: isEditing ? { updated: 'true' } : {},
-      })
+    if (fromSettings && isEditing) {
+      await router.push({ name: 'settings', query: { updated: 'true' } })
     } else {
       await router.push({ name: 'dashboard' })
     }
-    await router.push({ name: 'dashboard' })
   } catch {
     error.value = 'Não foi possível guardar o perfil.'
   } finally {
