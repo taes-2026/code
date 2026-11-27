@@ -73,20 +73,8 @@ function goBack() {
     </div>
 
     <form class="add-form" @submit.prevent="onAddItem">
-      <input
-        v-model="newItemName"
-        type="text"
-        placeholder="Adicionar item à lista (ex: Leite, Farinha...)"
-        class="input-name"
-        required
-      />
-      <input
-        v-model.number="newItemAmount"
-        type="number"
-        min="1"
-        placeholder="Qtd"
-        class="input-amount"
-      />
+      <input v-model="newItemName" type="text" placeholder="Adicionar item à lista" class="input-name" required />
+      <input v-model.number="newItemAmount" type="number" min="1" placeholder="Qtd" class="input-amount" />
       <button type="submit" class="btn-submit" :disabled="!newItemName.trim()">
         Adicionar
       </button>
@@ -97,12 +85,7 @@ function goBack() {
         {{ uncompletedItems.length }} por comprar de {{ state.items.length }} no total
       </span>
       <div class="toolbar-actions">
-        <button
-          v-if="completedItems.length > 0"
-          type="button"
-          class="btn-secondary"
-          @click="clearChecked"
-        >
+        <button v-if="completedItems.length > 0" type="button" class="btn-secondary" @click="clearChecked">
           Limpar comprados
         </button>
         <button type="button" class="btn-danger" @click="clearAll">
@@ -116,18 +99,9 @@ function goBack() {
     </p>
 
     <ul v-else class="shopping-list">
-      <li
-        v-for="item in state.items"
-        :key="item.id"
-        :class="['shopping-item', { 'is-checked': item.checked }]"
-      >
+      <li v-for="item in state.items" :key="item.id" :class="['shopping-item', { 'is-checked': item.checked }]">
         <label class="item-checkbox-label">
-          <input
-            type="checkbox"
-            :checked="item.checked"
-            class="checkbox"
-            @change="toggle(item.id)"
-          />
+          <input type="checkbox" :checked="item.checked" class="checkbox" @change="toggle(item.id)" />
         </label>
 
         <div class="item-body">
@@ -148,21 +122,11 @@ function goBack() {
         </div>
 
         <div class="item-actions">
-          <button
-            v-if="item.checked"
-            type="button"
-            class="btn-pantry"
-            title="Mover item para a despensa"
-            @click="moveToPantry(item)"
-          >
+          <button v-if="item.checked" type="button" class="btn-pantry" title="Mover item para a despensa"
+            @click="moveToPantry(item)">
             Mover para despensa
           </button>
-          <button
-            type="button"
-            class="btn-delete"
-            aria-label="Remover item"
-            @click="remove(item.id)"
-          >
+          <button type="button" class="btn-delete" aria-label="Remover item" @click="remove(item.id)">
             Remover
           </button>
         </div>
@@ -222,7 +186,8 @@ function goBack() {
 }
 
 .input-name {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 10px 14px;
   border: 1px solid #ccc;
   border-radius: 8px;
@@ -230,6 +195,7 @@ function goBack() {
 }
 
 .input-amount {
+  flex: 0 0 80px;
   width: 80px;
   padding: 10px;
   border: 1px solid #ccc;
@@ -238,6 +204,8 @@ function goBack() {
 }
 
 .btn-submit {
+  flex: 0 0 auto;
+  width: auto;
   padding: 10px 18px;
   background: #198754;
   color: #fff;
